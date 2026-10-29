@@ -1,0 +1,24 @@
+name: Cleanup reactions
+
+on:
+  schedule:
+    # 03:17 UTC = 11:17 Asia/Shanghai; avoid the top of the hour.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call cleanup endpoint
+        env:
+          CLEANUP_SECRET: ${{ secrets.REACTIONS_CLEANUP_SECRET }}
+        run: |
+          if [ -z "$CLEANUP_SECRET" ]; then
+            echo "REACTIONS_CLEANUP_SECRET is not set; skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "x-cleanup-secret: $CLEANUP_SECRET" \
+            https://skillnow.cn/api/reactions-cleanup

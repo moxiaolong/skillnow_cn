@@ -1,69 +1,166 @@
-import Image from "next/image";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
-export default function Home() {
+import { JsonLd } from "@/components/seo/json-ld";
+import { ReactionsProvider } from "@/components/skill/reactions-context";
+import { SkillGrid } from "@/components/skill/skill-grid";
+import { TagLink } from "@/components/skill/tag-link";
+import { HeroSearch } from "@/components/site/hero-search";
+import { SectionHeading } from "@/components/site/section-heading";
+import { toSkillCardData } from "@/lib/skill-card-data";
+import {
+  getFeaturedSkills,
+  getPublishedSkills,
+  getTagsWithCounts,
+} from "@/lib/skills";
+
+const DESCRIPTION =
+  "整理者日常在用的 AI Skill。收录弗洛伊德、黑格尔、芒格、雷军等人物思维 Skill，支持全文阅读、复制与下载。";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: "SkillNow · 中文 AI Skill 精选",
+  },
+  description: DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "SkillNow · 中文 AI Skill 精选",
+    description: DESCRIPTION,
+    url: "/",
+    images: [{ url: "/og/default.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    title: "SkillNow · 中文 AI Skill 精选",
+    description: DESCRIPTION,
+    images: ["/og/default.png"],
+  },
+};
+
+export default function HomePage() {
+  const skills = getPublishedSkills();
+  const featured = getFeaturedSkills(4);
+  const featuredOrFirst = featured.length > 0 ? featured : skills.slice(0, 4);
+  const popularTags = [...getTagsWithCounts()]
+    .sort((a, b) => b.count - a.count || a.order - b.order)
+    .slice(0, 3);
+  const cardSkills = skills.map(toSkillCardData);
+  const ids = cardSkills.map((skill) => skill.slug);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+    <ReactionsProvider ids={ids}>
+      <section className="border-b border-line">
+        <div className="container-page grid gap-10 py-12 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <h1 className="max-w-xl font-serif text-[32px] leading-[1.2] tracking-tight text-ink sm:text-[40px] lg:text-[44px]">
+              把大师的思维方式，
+              <br />
+              装进你的 AI。
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-8 text-muted">
+              整理者日常在用的 AI Skill，直接复制就能用。
+            </p>
+
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <HeroSearch />
+              <Link
+                href="/skills/"
+                className="group inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orange-strong px-5 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-orange sm:w-auto"
+              >
+                浏览全部 Skill
+                <ArrowUpRight
+                  className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  aria-hidden
+                />
+              </Link>
+            </div>
+
+            {popularTags.length > 0 ? (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {popularTags.map((tag) => (
+                  <TagLink
+                    key={tag.slug}
+                    slug={tag.slug}
+                    label={tag.label}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="relative mx-auto hidden aspect-square w-full max-w-[340px] items-center justify-center lg:flex">
+            <div className="relative flex h-full w-full items-center justify-center">
+              <div
+                className="animate-breathe-soft absolute h-[280px] w-[230px]"
+                aria-hidden
+              >
+                <div className="-rotate-6 translate-x-2 translate-y-2 h-full w-full rounded-2xl border border-line bg-surface" />
+              </div>
+              <div
+                className="animate-breathe absolute h-[265px] w-[215px]"
+                aria-hidden
+              >
+                <div className="rotate-3 -translate-x-1 -translate-y-1 h-full w-full rounded-2xl border border-line bg-bg shadow-[0_12px_40px_rgba(28,25,23,0.06)]" />
+              </div>
+              <div className="relative flex h-[250px] w-[200px] -rotate-2 flex-col justify-between rounded-2xl border border-line bg-bg p-5 shadow-[0_20px_60px_rgba(28,25,23,0.08)]">
+                <div className="flex items-center justify-between">
+                  <span className="h-2.5 w-2.5 bg-orange" aria-hidden />
+                  <span className="font-mono text-[10px] text-muted">2026</span>
+                </div>
+                <div>
+                  <p className="font-serif text-xl tracking-tight text-ink">
+                    SKILLNOW
+                  </p>
+                  <p className="mt-1 text-xs text-muted">精选中文 Skill 整理</p>
+                </div>
+                <div className="h-px w-full bg-line" />
+                <div className="flex items-center justify-between text-[10px] text-muted">
+                  <span className="tracking-[0.14em]">SKILLS</span>
+                  <span>{String(skills.length).padStart(2, "0")}</span>
+                </div>
+              </div>
+            </div>
+            <div
+              className="absolute -top-2 -right-2 h-12 w-12 border border-orange/30"
+              aria-hidden
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="container-page py-12 sm:py-16">
+        <SectionHeading title="常用清单" meta={`${skills.length} 个`} />
+        <SkillGrid
+          skills={featuredOrFirst.map(toSkillCardData)}
+          columns={2}
+          className="mt-7"
+        />
+      </section>
+
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "SkillNow",
+          url: "https://skillnow.cn/",
+          description: DESCRIPTION,
+          inLanguage: "zh-CN",
+        }}
+      />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: featuredOrFirst.map((skill, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: `https://skillnow.cn/skills/${skill.slug}/`,
+            name: skill.title,
+          })),
+        }}
+      />
+    </ReactionsProvider>
   );
 }

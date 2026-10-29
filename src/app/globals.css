@@ -1,26 +1,198 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-bg: #ffffff;
+  --color-surface: #fafaf9;
+  --color-line: #e7e5e4;
+  --color-ink: #1c1917;
+  --color-muted: #78716c;
+  --color-orange: #e8590c;
+  --color-orange-strong: #c2410c;
+  --color-orange-soft: #fff1e8;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-serif: "Songti SC", "STSong", "Source Han Serif SC",
+    "Noto Serif CJK SC", "SimSun", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+  }
+
+  ::selection {
+    background: #fed7aa;
+    color: #1c1917;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-orange-strong);
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.07);
+    opacity: 0.7;
+  }
+}
+
+@keyframes breathe-soft {
+  0%,
+  100% {
+    transform: scale(1.04);
+    opacity: 0.18;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.42;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 7s ease-in-out infinite;
+}
+
+.animate-breathe-soft {
+  animation: breathe-soft 9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-breathe,
+  .animate-breathe-soft {
+    animation: none;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+  }
+
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-bg focus:px-4 focus:py-2 focus:text-sm focus:text-ink focus:ring-1 focus:ring-orange;
+  }
+
+  .prose {
+    --tw-prose-body: var(--color-ink);
+    --tw-prose-headings: var(--color-ink);
+    --tw-prose-lead: var(--color-muted);
+    --tw-prose-links: var(--color-orange-strong);
+    --tw-prose-bold: var(--color-ink);
+    --tw-prose-counters: var(--color-muted);
+    --tw-prose-bullets: var(--color-orange);
+    --tw-prose-hr: var(--color-line);
+    --tw-prose-quotes: var(--color-ink);
+    --tw-prose-quote-borders: var(--color-orange);
+    --tw-prose-captions: var(--color-muted);
+    --tw-prose-code: var(--color-orange-strong);
+    --tw-prose-pre-code: inherit;
+    --tw-prose-pre-bg: transparent;
+    --tw-prose-th-borders: var(--color-line);
+    --tw-prose-td-borders: var(--color-line);
+    max-width: none;
+    font-size: 1rem;
+    line-height: 1.9;
+  }
+
+  .prose :where(h1, h2, h3, h4) {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .prose :where(h2) {
+    margin-top: 2.5rem;
+    margin-bottom: 0.875rem;
+    font-size: 1.5rem;
+    line-height: 1.35;
+  }
+
+  .prose :where(h3) {
+    margin-top: 1.875rem;
+    margin-bottom: 0.625rem;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+
+  .prose :where(h2, h3) {
+    scroll-margin-top: 6rem;
+  }
+
+  .prose :where(p) {
+    margin-top: 0.9rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .prose :where(blockquote) {
+    font-family: var(--font-serif);
+    font-style: normal;
+    font-weight: 400;
+    border-left-width: 2px;
+    padding-left: 1.25rem;
+    color: var(--color-ink);
+  }
+
+  .prose :where(a) {
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .prose :where(a:hover) {
+    color: var(--color-orange);
+  }
+
+  .prose :where(pre) {
+    overflow-x: auto;
+    border: 1px solid var(--color-line);
+    border-radius: 0.75rem;
+    background: var(--color-surface);
+    padding: 1rem 1.25rem;
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+
+  .prose :where(pre code) {
+    background: transparent;
+    padding: 0;
+    font-weight: 400;
+  }
+
+  .prose :where(:not(pre) > code) {
+    border-radius: 0.25rem;
+    background: var(--color-orange-soft);
+    padding: 0.12rem 0.35rem;
+    font-size: 0.88em;
+    font-weight: 500;
+  }
+
+  .prose :where(table) {
+    display: block;
+    overflow-x: auto;
+    font-size: 0.9rem;
+  }
+
+  .prose :where(hr) {
+    margin-top: 2.5rem;
+    margin-bottom: 2.5rem;
+  }
 }
