@@ -6,10 +6,15 @@
 ## 0. 前置条件
 
 - 域名 `skillnow.cn` 已完成 **ICP 备案**（公司主体：北京此在科技有限公司）。
+  建议沿用 soulstation.club 的现有备案，在 **阿里云备案控制台** 做「新增网站」。
   未备案时不要绑定中国大陆节点。
-- 腾讯云账号已实名，且与备案主体一致。
-- GitHub 仓库已创建（建议私有）。
+- 腾讯云账号已实名，EdgeOne Pages 免费版已开通。
+- GitHub 仓库：`git@github.com:moxiaolong/skillnow_cn.git`。
 - 本地 `pnpm build` 通过。
+
+> 备案接入商和托管商可以不同：可以在阿里云备案，再把域名绑定到 EdgeOne。
+> 如果 EdgeOne 控制台提示需要「接入备案」，按提示提交；若要求腾讯云云资源/授权码，
+> 再评估是否继续用大陆节点，或先用全球节点 / 阿里云静态托管。
 
 ## 1. 本地构建
 
@@ -24,11 +29,13 @@ pnpm start
 
 ## 2. 推送到 GitHub
 
+仓库已创建并推送（`main`，commit `7296b1c`）。如需重新推送：
+
 ```bash
 git add .
-git commit -m "feat: SkillNow initial site"
+git commit -m "feat: update SkillNow"
 git branch -M main
-git remote add origin git@github.com:<your-org>/skillnow.git
+git remote add origin git@github.com:moxiaolong/skillnow_cn.git
 git push -u origin main
 ```
 
@@ -38,7 +45,7 @@ git push -u origin main
 ## 3. 创建 EdgeOne Pages 项目
 
 1. 登录腾讯云 EdgeOne 控制台，进入 **Pages**。
-2. **新建项目 → 导入 Git 仓库**，选择 `skillnow` 仓库。
+2. **新建项目 → 导入 Git 仓库**，选择 `moxiaolong/skillnow_cn` 仓库。
 3. 构建配置：
    - Framework：Next.js
    - 构建命令：`pnpm build`
@@ -117,6 +124,11 @@ curl -X POST "https://<preview-domain>/api/reactions" \
    重新构建部署。
 5. 如有公安备案，在页脚补上公安备案号与链接。
 
+> skillnow.cn 可以在阿里云做新增网站备案，再绑定到 EdgeOne。
+> 如果 EdgeOne 绑定域名时提示需要「接入备案」，按控制台提示提交；
+> 若要求腾讯云云资源/备案授权码，先不要急着购买，把控制台提示发我，
+> 我们再决定是继续用 EdgeOne 大陆节点，还是先用全球节点 / 阿里云静态托管。
+>
 > 未备案时只能使用「全球可用区（不含中国大陆）」，国内访问会慢；
 > 不要用未备案域名做正式推广。
 

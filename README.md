@@ -97,13 +97,14 @@ NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 
 概要：
 
-1. 推送到 GitHub。
-2. EdgeOne Pages 导入仓库，构建命令 `pnpm build`，输出目录 `out`，Node 22。
-3. 创建 KV 命名空间并绑定为 `REACTIONS_KV`。
-4. 配置环境变量：`NEXT_PUBLIC_POSTHOG_KEY`、`NEXT_PUBLIC_POSTHOG_HOST`、
+1. 在阿里云备案控制台用现有主体给 `skillnow.cn` 做「新增网站备案」。
+2. 推送到 GitHub：`git@github.com:moxiaolong/skillnow_cn.git`。
+3. EdgeOne Pages 导入仓库，构建命令 `pnpm build`，输出目录 `out`，Node 22。
+4. 创建 KV 命名空间并绑定为 `REACTIONS_KV`。
+5. 配置环境变量：`NEXT_PUBLIC_POSTHOG_KEY`、`NEXT_PUBLIC_POSTHOG_HOST`、
    `REACTIONS_HMAC_SECRET`、`REACTIONS_CLEANUP_SECRET`。
-5. 备案完成后绑定 `skillnow.cn` 与 `www.skillnow.cn`，apex 为主，www 301。
-6. 页脚替换真实 ICP 备案号。
+6. 备案完成后绑定 `skillnow.cn` 与 `www.skillnow.cn`，apex 为主，www 301。
+7. 页脚替换真实 ICP 备案号。
 
 ## 许可
 
