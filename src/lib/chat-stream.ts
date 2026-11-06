@@ -1,4 +1,4 @@
-import type { ChatMessage } from "@/lib/chat-history";
+import type { ChatMessage, ChatQuote } from "@/lib/chat-history";
 
 export type ToolCallDelta = {
   index: number;
@@ -56,6 +56,7 @@ export type CompletionResult = {
 export type BuildRequestOptions = {
   systemPrompt?: string | null;
   maxHistoryChars?: number;
+  quote?: ChatQuote | null;
 };
 
 export const SKILL_SYSTEM_PREFIX =
@@ -319,6 +320,14 @@ export function extractCompletion(payload: unknown): CompletionResult {
   };
 }
 
+function withQuotedContent(
+  content: string,
+  quote?: ChatQuote | null,
+): string {
+  if (!quote) return content;
+  return `[引用 ${quote.speakerName} 的消息]\n${quote.text}\n\n${content}`;
+}
+
 /**
  * Builds the OpenAI-compatible message list. `previousMessages` must not
  * already include the new user turn. History is capped by character count
@@ -331,7 +340,7 @@ export function buildRequestMessages(
   userText: string,
   options: BuildRequestOptions = {},
 ): RequestMessage[] {
-  const { systemPrompt, maxHistoryChars = 24_000 } = options;
+  const { systemPrompt, maxHistoryChars = 24_000, quote } = options;
 
   const usable = previousMessages.filter(
     (message) =>
@@ -347,7 +356,9 @@ export function buildRequestMessages(
   for (let index = usable.length - 1; index >= 0; index -= 1) {
     const message = usable[index];
     const length =
-      message.content.length + (message.reasoning?.length ?? 0);
+      message.content.length +
+      (message.reasoning?.length ?? 0) +
+      (message.quote?.text.length ?? 0);
 
     if (kept.length > 0 && chars + length > maxHistoryChars) {
       break;
@@ -380,11 +391,17 @@ export function buildRequestMessages(
           : {}),
       });
     } else {
-      request.push({ role: "user", content: message.content });
+      request.push({
+        role: "user",
+        content: withQuotedContent(message.content, message.quote),
+      });
     }
   }
 
-  request.push({ role: "user", content: userText });
+  request.push({
+    role: "user",
+    content: withQuotedContent(userText, quote),
+  });
 
   return request;
 }

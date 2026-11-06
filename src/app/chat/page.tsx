@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { ChatClient } from "@/components/chat/chat-client";
+import { ChatPageNotice } from "@/components/chat/chat-page-notice";
 
 const DESCRIPTION =
-  "在浏览器中直接连接你填写的模型平台的 AI 对话工具，支持联网搜索。API Key 与对话记录只保存在本机，不上传到本站。";
+  "在浏览器中直接连接你填写的模型平台的 AI 对话工具，支持联网搜索和多 Skill 讨论。API Key 与对话记录只保存在本机，不上传到本站。";
 
 export const metadata: Metadata = {
   title: "AI 对话",
@@ -40,15 +40,7 @@ export default function ChatPage() {
           <h1 className="font-serif text-2xl tracking-tight text-ink sm:text-3xl">
             AI 对话
           </h1>
-          <p className="mt-1 text-xs leading-5 text-muted">
-            浏览器直连模型平台；API Key、联网搜索开关与对话记录只保存在本机，不会上传到本站。{" "}
-            <Link
-              href="/privacy/"
-              className="text-orange-strong underline decoration-orange/30 underline-offset-4 hover:text-orange"
-            >
-              隐私政策
-            </Link>
-          </p>
+          <ChatPageNotice />
         </header>
 
         <Suspense fallback={<ChatFallback />}>

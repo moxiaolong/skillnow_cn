@@ -7,6 +7,18 @@ import {
 
 export type ChatRole = "user" | "assistant";
 export type ChatStatus = "streaming" | "complete" | "stopped" | "error";
+export type ChatKind = "summary" | "discussion-note";
+
+export type ChatSpeaker = {
+  slug: string;
+  name: string;
+};
+
+export type ChatQuote = {
+  messageId: string;
+  speakerName: string;
+  text: string;
+};
 
 export type ChatMessage = {
   id: string;
@@ -14,7 +26,12 @@ export type ChatMessage = {
   content: string;
   reasoning?: string;
   sources?: ChatSource[];
-  kind?: "summary";
+  kind?: ChatKind;
+  speaker?: ChatSpeaker;
+  round?: number;
+  replyToId?: string;
+  quote?: ChatQuote;
+  interjection?: boolean;
   status: ChatStatus;
   createdAt: number;
 };
@@ -25,7 +42,12 @@ export type StoredChatMessage = {
   content: string;
   reasoning?: string;
   sources?: ChatSource[];
-  kind?: "summary";
+  kind?: ChatKind;
+  speaker?: ChatSpeaker;
+  round?: number;
+  replyToId?: string;
+  quote?: ChatQuote;
+  interjection?: boolean;
   status: Exclude<ChatStatus, "streaming">;
   createdAt: number;
 };
@@ -104,6 +126,47 @@ function parseChatSources(value: unknown): ChatSource[] | undefined {
   return sources.length > 0 ? sources : undefined;
 }
 
+function parseChatSpeaker(value: unknown): ChatSpeaker | undefined {
+  if (!isRecord(value)) return undefined;
+  const slug = typeof value.slug === "string" ? value.slug.trim() : "";
+  const name = typeof value.name === "string" ? value.name.trim() : "";
+  if (!slug || !name) return undefined;
+  return {
+    slug: slug.slice(0, 100),
+    name: name.slice(0, 100),
+  };
+}
+
+function parseChatQuote(value: unknown): ChatQuote | undefined {
+  if (!isRecord(value)) return undefined;
+  const messageId =
+    typeof value.messageId === "string" ? value.messageId.trim() : "";
+  const speakerName =
+    typeof value.speakerName === "string" ? value.speakerName.trim() : "";
+  const text = typeof value.text === "string" ? value.text.trim() : "";
+  if (!messageId || !speakerName || !text) return undefined;
+  return {
+    messageId: messageId.slice(0, 200),
+    speakerName: speakerName.slice(0, 100),
+    text: text.slice(0, 300),
+  };
+}
+
+function parseChatKind(value: unknown): ChatKind | undefined {
+  return value === "summary" || value === "discussion-note"
+    ? value
+    : undefined;
+}
+
+function parseRound(value: unknown): number | undefined {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= 999
+    ? value
+    : undefined;
+}
+
 function parseStoredMessage(value: unknown): StoredChatMessage | null {
   if (!isRecord(value)) return null;
 
@@ -113,7 +176,15 @@ function parseStoredMessage(value: unknown): StoredChatMessage | null {
   if (typeof content !== "string") return null;
 
   const sources = parseChatSources(value.sources);
-  const kind = value.kind === "summary" ? "summary" : undefined;
+  const kind = parseChatKind(value.kind);
+  const speaker = parseChatSpeaker(value.speaker);
+  const round = parseRound(value.round);
+  const replyToId =
+    typeof value.replyToId === "string" && value.replyToId.trim()
+      ? value.replyToId.trim().slice(0, 200)
+      : undefined;
+  const quote = parseChatQuote(value.quote);
+  const interjection = value.interjection === true ? true : undefined;
   if (
     content.trim().length === 0 &&
     (typeof reasoning !== "string" || reasoning.trim().length === 0) &&
@@ -132,6 +203,11 @@ function parseStoredMessage(value: unknown): StoredChatMessage | null {
       : {}),
     ...(sources ? { sources } : {}),
     ...(kind ? { kind } : {}),
+    ...(speaker ? { speaker } : {}),
+    ...(round ? { round } : {}),
+    ...(replyToId ? { replyToId } : {}),
+    ...(quote ? { quote } : {}),
+    ...(interjection ? { interjection } : {}),
     status: isStoredStatus(status) ? status : "complete",
     createdAt,
   };
@@ -188,6 +264,7 @@ export function readConversation(
     ...(message.sources
       ? { sources: message.sources.map((source) => ({ ...source })) }
       : {}),
+    ...(message.quote ? { quote: { ...message.quote } } : {}),
   }));
 }
 
@@ -204,7 +281,14 @@ export function trimMessages(messages: ChatMessage[]): StoredChatMessage[] {
         ? message.reasoning
         : undefined;
     const sources = message.sources?.length ? message.sources : undefined;
-    const kind = message.kind === "summary" ? "summary" : undefined;
+    const kind = parseChatKind(message.kind);
+    const quote = parseChatQuote(message.quote);
+    const speaker = parseChatSpeaker(message.speaker);
+    const round = parseRound(message.round);
+    const replyToId =
+      typeof message.replyToId === "string" && message.replyToId.trim()
+        ? message.replyToId.trim().slice(0, 200)
+        : undefined;
 
     if (message.content.trim().length === 0 && !reasoning && !sources) {
       continue;
@@ -224,6 +308,11 @@ export function trimMessages(messages: ChatMessage[]): StoredChatMessage[] {
       ...(reasoning ? { reasoning } : {}),
       ...(sources ? { sources } : {}),
       ...(kind ? { kind } : {}),
+      ...(speaker ? { speaker } : {}),
+      ...(round ? { round } : {}),
+      ...(replyToId ? { replyToId } : {}),
+      ...(quote ? { quote } : {}),
+      ...(message.interjection === true ? { interjection: true } : {}),
       status: message.status === "streaming" ? "stopped" : message.status,
       createdAt: message.createdAt,
     });
@@ -242,7 +331,10 @@ export function trimMessages(messages: ChatMessage[]): StoredChatMessage[] {
         0,
       ) ?? 0;
     const length =
-      message.content.length + (message.reasoning?.length ?? 0) + sourceChars;
+      message.content.length +
+      (message.reasoning?.length ?? 0) +
+      (message.quote?.text.length ?? 0) +
+      sourceChars;
 
     if (kept.length > 0 && chars + length > MAX_CHARS_PER_CONVERSATION) break;
 

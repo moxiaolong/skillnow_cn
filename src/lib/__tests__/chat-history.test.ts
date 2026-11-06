@@ -338,3 +338,85 @@ describe("conversation persistence", () => {
     expect(() => clearConversation("general", throwing)).not.toThrow();
   });
 });
+
+describe("discussion metadata", () => {
+  it("preserves speaker, round, quote, interjection, and notes", () => {
+    const trimmed = trimMessages([
+      message("user", "问题", { interjection: true, round: 2 }),
+      message("assistant", "回应", {
+        speaker: { slug: "freud", name: "弗洛伊德" },
+        round: 2,
+        replyToId: "m1",
+        quote: { messageId: "m1", speakerName: "你", text: "问题" },
+      }),
+      message("assistant", "讨论结束", { kind: "discussion-note" }),
+    ]);
+
+    expect(trimmed[0]).toMatchObject({ interjection: true, round: 2 });
+    expect(trimmed[1]).toMatchObject({
+      speaker: { slug: "freud", name: "弗洛伊德" },
+      round: 2,
+      replyToId: "m1",
+      quote: { messageId: "m1", speakerName: "你", text: "问题" },
+    });
+    expect(trimmed[2].kind).toBe("discussion-note");
+  });
+
+  it("round-trips through storage", () => {
+    const storage = new MemoryStorage();
+    writeConversation(
+      "discussion:freud,hegel",
+      [
+        message("user", "问题"),
+        message("assistant", "回应", {
+          speaker: { slug: "hegel", name: "黑格尔" },
+          round: 1,
+          replyToId: "m1",
+          quote: { messageId: "m1", speakerName: "你", text: "问题" },
+        }),
+      ],
+      storage,
+    );
+
+    const loaded = readConversation("discussion:freud,hegel", storage);
+    expect(loaded).toHaveLength(2);
+    expect(loaded[1]).toMatchObject({
+      speaker: { slug: "hegel", name: "黑格尔" },
+      round: 1,
+      replyToId: "m1",
+      quote: { messageId: "m1", speakerName: "你", text: "问题" },
+    });
+  });
+
+  it("drops invalid speaker and quote metadata", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      CHAT_HISTORY_KEY,
+      JSON.stringify({
+        version: 1,
+        conversations: {
+          "discussion:a,b": {
+            updatedAt: 1,
+            messages: [
+              {
+                id: "m1",
+                role: "assistant",
+                content: "回应",
+                status: "complete",
+                createdAt: 1,
+                speaker: { slug: "", name: "" },
+                round: -1,
+                quote: { messageId: "", speakerName: "", text: "" },
+              },
+            ],
+          },
+        },
+      }),
+    );
+
+    const loaded = readConversation("discussion:a,b", storage);
+    expect(loaded[0].speaker).toBeUndefined();
+    expect(loaded[0].round).toBeUndefined();
+    expect(loaded[0].quote).toBeUndefined();
+  });
+});

@@ -106,6 +106,12 @@ export function ChatSettingsPanel({
     setSavedNotice(false);
   }
 
+  function updateShowReasoning(value: boolean) {
+    onDraftChange({ ...draft, showReasoning: value });
+    setError(null);
+    setSavedNotice(false);
+  }
+
   function handleSave() {
     const result = validateChatSettings(draft);
     if (!result.ok) {
@@ -313,7 +319,7 @@ export function ChatSettingsPanel({
             <option value="deepseek-v4-pro" />
           </datalist>
           <p className="mt-1.5 text-[11px] leading-5 text-muted">
-            默认模型支持思考模式，思考过程会自动显示；也可填写其他平台的模型名。
+            默认模型支持思考模式，思考过程是否展开可在下方设置。
           </p>
         </div>
 
@@ -366,6 +372,31 @@ export function ChatSettingsPanel({
           <p className="mt-1.5 text-[11px] leading-5 text-muted">
             按估算 token 计算；达到 80% 会自动压缩早期对话。
           </p>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label
+            htmlFor="chat-show-reasoning"
+            className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 transition-colors hover:border-orange/50"
+          >
+            <input
+              id="chat-show-reasoning"
+              type="checkbox"
+              checked={draft.showReasoning}
+              onChange={(event) =>
+                updateShowReasoning(event.target.checked)
+              }
+              className="mt-0.5 size-4 shrink-0 accent-[var(--color-orange-strong)]"
+            />
+            <span className="min-w-0">
+              <span className="block text-xs font-medium text-ink">
+                显示思考过程
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-5 text-muted">
+                关闭后不再在回答上方展开思考过程；思考内容仍会保留，开启后可再次查看。
+              </span>
+            </span>
+          </label>
         </div>
       </div>
 

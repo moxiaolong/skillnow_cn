@@ -4,7 +4,6 @@ import { Logo } from "@/components/site/logo";
 
 const FOOTER_LINKS = [
   { href: "/skills/", label: "全部 Skill" },
-  { href: "/rankings/", label: "榜单" },
   { href: "/chat/", label: "AI 对话" },
   { href: "/about/", label: "关于" },
   { href: "/privacy/", label: "隐私" },

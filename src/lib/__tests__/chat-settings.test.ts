@@ -91,6 +91,7 @@ describe("DEFAULT_CHAT_SETTINGS", () => {
     expect(DEFAULT_CHAT_SETTINGS.model).toBe("deepseek-flash");
     expect(DEFAULT_CHAT_SETTINGS.reasoningEffort).toBe("default");
     expect(DEFAULT_CHAT_SETTINGS.contextLimit).toBe(1_000_000);
+    expect(DEFAULT_CHAT_SETTINGS.showReasoning).toBe(true);
   });
 });
 
@@ -179,6 +180,7 @@ describe("validateChatSettings", () => {
       model: " deepseek-flash ",
       reasoningEffort: "max",
       contextLimit: 128_000,
+      showReasoning: false,
     });
 
     expect(result.ok).toBe(true);
@@ -189,6 +191,7 @@ describe("validateChatSettings", () => {
         model: "deepseek-flash",
         reasoningEffort: "max",
         contextLimit: 128_000,
+        showReasoning: false,
       });
       expect(result.endpoint).toBe(
         "https://api.deepseek.com/chat/completions",
@@ -225,6 +228,7 @@ describe("chat settings storage", () => {
       model: "deepseek-flash",
       reasoningEffort: "low" as const,
       contextLimit: 128_000 as const,
+      showReasoning: false,
     };
 
     expect(saveChatSettings(settings, storage)).toBe(true);
@@ -249,6 +253,7 @@ describe("chat settings storage", () => {
       model: "m",
       reasoningEffort: "default",
       contextLimit: 1_000_000,
+      showReasoning: true,
     });
 
     storage.setItem(
@@ -268,6 +273,7 @@ describe("chat settings storage", () => {
       model: "m",
       reasoningEffort: "default",
       contextLimit: 1_000_000,
+      showReasoning: true,
     });
   });
 
@@ -300,6 +306,7 @@ describe("chat settings storage", () => {
         model: "m",
         reasoningEffort: "high",
         contextLimit: 64_000,
+        showReasoning: true,
       },
       storage,
     );
@@ -330,6 +337,7 @@ describe("chat settings storage", () => {
           model: "m",
           reasoningEffort: "high",
           contextLimit: 64_000,
+          showReasoning: true,
         },
         throwing,
       ),

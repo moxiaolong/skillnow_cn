@@ -10,8 +10,8 @@ import { SearchDialog } from "@/components/site/search-dialog";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
+  { href: "/", label: "首页" },
   { href: "/skills/", label: "全部 Skill" },
-  { href: "/rankings/", label: "榜单" },
   { href: "/chat/", label: "AI 对话" },
   { href: "/about/", label: "关于" },
 ];
@@ -22,6 +22,7 @@ export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   function isActive(href: string) {
+    if (href === "/") return pathname === "/";
     if (href === "/skills/") return pathname.startsWith("/skills");
     if (href === "/chat/") return pathname.startsWith("/chat");
     return pathname === href;

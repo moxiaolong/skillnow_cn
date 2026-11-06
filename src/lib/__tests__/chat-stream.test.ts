@@ -218,6 +218,46 @@ describe("buildRequestMessages", () => {
     ]);
   });
 
+  it("includes the quoted message in the new user turn", () => {
+    const request = buildRequestMessages([], "我不同意", {
+      quote: {
+        messageId: "a1",
+        speakerName: "弗洛伊德",
+        text: "自由是……",
+      },
+    });
+
+    expect(request).toEqual([
+      {
+        role: "user",
+        content: "[引用 弗洛伊德 的消息]\n自由是……\n\n我不同意",
+      },
+    ]);
+  });
+
+  it("keeps quotes on earlier user turns", () => {
+    const request = buildRequestMessages(
+      [
+        message("user", "之前说过", {
+          quote: {
+            messageId: "a1",
+            speakerName: "黑格尔",
+            text: "历史观点",
+          },
+        }),
+      ],
+      "继续",
+    );
+
+    expect(request).toEqual([
+      {
+        role: "user",
+        content: "[引用 黑格尔 的消息]\n历史观点\n\n之前说过",
+      },
+      { role: "user", content: "继续" },
+    ]);
+  });
+
   it("caps history by characters from the newest end", () => {
     const request = buildRequestMessages(
       [message("user", "1234"), message("assistant", "5678")],

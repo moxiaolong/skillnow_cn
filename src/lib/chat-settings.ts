@@ -20,6 +20,7 @@ export type ChatSettings = {
   model: string;
   reasoningEffort: ReasoningEffort;
   contextLimit: ContextLimit;
+  showReasoning: boolean;
 };
 
 export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
@@ -28,6 +29,7 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   model: "deepseek-flash",
   reasoningEffort: "default",
   contextLimit: 1_000_000,
+  showReasoning: true,
 };
 
 export function normalizeReasoningEffort(value: unknown): ReasoningEffort {
@@ -190,6 +192,7 @@ export function validateChatSettings(input: ChatSettings): SettingsValidation {
       model,
       reasoningEffort: normalizeReasoningEffort(input.reasoningEffort),
       contextLimit: normalizeContextLimit(input.contextLimit),
+      showReasoning: input.showReasoning !== false,
     },
     endpoint: normalized.endpoint,
     insecure: normalized.insecure,
@@ -224,6 +227,7 @@ export function readChatSettings(
       model: record.model.trim(),
       reasoningEffort: normalizeReasoningEffort(record.reasoningEffort),
       contextLimit: normalizeContextLimit(record.contextLimit),
+      showReasoning: record.showReasoning !== false,
     };
   } catch {
     return null;
@@ -246,6 +250,7 @@ export function saveChatSettings(
         model: settings.model,
         reasoningEffort: settings.reasoningEffort,
         contextLimit: settings.contextLimit,
+        showReasoning: settings.showReasoning !== false,
       }),
     );
     return true;
@@ -286,6 +291,38 @@ export function saveChatSearch(
 
   try {
     storage.setItem(CHAT_SEARCH_KEY, enabled ? "1" : "0");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const CHAT_VIEW_KEY = "skillnow:chat-view:v1";
+
+export type ChatViewPreference = "timeline" | "tree";
+
+export function readChatView(
+  storage: StorageLike | null = getDefaultStorage(),
+): ChatViewPreference {
+  if (!storage) return "timeline";
+
+  try {
+    return storage.getItem(CHAT_VIEW_KEY) === "tree"
+      ? "tree"
+      : "timeline";
+  } catch {
+    return "timeline";
+  }
+}
+
+export function saveChatView(
+  view: ChatViewPreference,
+  storage: StorageLike | null = getDefaultStorage(),
+): boolean {
+  if (!storage) return false;
+
+  try {
+    storage.setItem(CHAT_VIEW_KEY, view);
     return true;
   } catch {
     return false;

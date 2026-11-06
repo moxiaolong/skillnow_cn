@@ -1,10 +1,29 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { MessageSquare } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { ChevronDown, ChevronRight, MessageSquare } from "lucide-react";
 
-import { ChatMarkdown } from "@/components/chat/chat-markdown";
+import { ChatMessageItem } from "@/components/chat/chat-message-item";
 import type { ChatMessage } from "@/lib/chat-history";
+import type {
+  DiscussionIntentStatus,
+  DiscussionParticipant,
+} from "@/lib/chat-discussion";
+import {
+  buildMessageForest,
+  getThreadAncestors,
+  type ThreadNode,
+} from "@/lib/chat-thread";
+import { cn } from "@/lib/utils";
+
+export type ChatView = "timeline" | "tree";
 
 type ChatMessageListProps = {
   messages: ChatMessage[];
@@ -12,7 +31,15 @@ type ChatMessageListProps = {
   searching: boolean;
   loading: boolean;
   skillMode: boolean;
+  discussionMode?: boolean;
+  discussionParticipants?: DiscussionParticipant[];
+  discussionIntents?: Record<string, DiscussionIntentStatus>;
+  discussionIntentTargets?: Record<string, string>;
+  view?: ChatView;
+  showReasoning?: boolean;
+  onAnnounce?: (text: string) => void;
   onPickExample: (text: string) => void;
+  onQuoteMessage?: (message: ChatMessage) => void;
 };
 
 const GENERAL_EXAMPLES = [
@@ -27,42 +54,413 @@ const SKILL_EXAMPLES = [
   "先问我几个问题，再给出分析。",
 ];
 
+const DISCUSSION_EXAMPLES = [
+  "AI 会取代心理咨询师吗？",
+  "人应该如何面对失败？",
+  "自由意志真的存在吗？",
+];
+
 export function ChatMessageList({
   messages,
   isStreaming,
   searching,
   loading,
   skillMode,
+  discussionMode = false,
+  discussionParticipants = [],
+  discussionIntents = {},
+  discussionIntentTargets = {},
+  view = "timeline",
+  showReasoning = true,
+  onAnnounce,
   onPickExample,
+  onQuoteMessage,
 }: ChatMessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const userCountRef = useRef(0);
+  const highlightTimerRef = useRef<number | null>(null);
+  const pendingScrollRef = useRef<{
+    id: string;
+    smooth: boolean;
+    highlight: boolean;
+  } | null>(null);
+  const autoStreamingIdRef = useRef<string | null>(null);
+  const previousTreeRef = useRef(false);
+
+  const [collapsed, setCollapsed] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [scrollTick, setScrollTick] = useState(0);
+
+  const isTree = discussionMode && view === "tree";
+  const forest = useMemo(() => buildMessageForest(messages), [messages]);
+  const streamingId =
+    messages.find((message) => message.status === "streaming")?.id ?? null;
 
   const userCount = messages.reduce(
     (count, message) => (message.role === "user" ? count + 1 : count),
     0,
   );
 
+  const scrollToMessage = useCallback(
+    (messageId: string, behavior: ScrollBehavior): boolean => {
+      const list = listRef.current;
+      const element = document.getElementById(
+        `chat-message-${messageId}`,
+      );
+      if (!list || !element) return false;
+
+      const listRect = list.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const top =
+        list.scrollTop + elementRect.top - listRect.top - 16;
+      list.scrollTo({ top: Math.max(0, top), behavior });
+      return true;
+    },
+    [],
+  );
+
+  const flash = useCallback((messageId: string) => {
+    setHighlightId(messageId);
+    if (highlightTimerRef.current !== null) {
+      window.clearTimeout(highlightTimerRef.current);
+    }
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightId(null);
+      highlightTimerRef.current = null;
+    }, 1600);
+  }, []);
+
+  const revealAndJump = useCallback(
+    (messageId: string) => {
+      if (!messages.some((message) => message.id === messageId)) {
+        onAnnounce?.("原消息已省略，无法跳转。");
+        return;
+      }
+
+      if (isTree) {
+        const ancestors = getThreadAncestors(forest, messageId);
+        setCollapsed((current) => {
+          const next = new Set(current);
+          let changed = false;
+          for (const ancestor of ancestors) {
+            if (next.delete(ancestor)) changed = true;
+          }
+          return changed ? next : current;
+        });
+      }
+
+      stickToBottomRef.current = false;
+      pendingScrollRef.current = {
+        id: messageId,
+        smooth: true,
+        highlight: true,
+      };
+      setScrollTick((value) => value + 1);
+
+      window.setTimeout(() => {
+        if (pendingScrollRef.current?.id === messageId) {
+          pendingScrollRef.current = null;
+          onAnnounce?.("原消息已省略，无法跳转。");
+        }
+      }, 700);
+    },
+    [forest, isTree, messages, onAnnounce],
+  );
+
+  const toggleCollapse = useCallback((messageId: string) => {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(messageId)) next.delete(messageId);
+      else next.add(messageId);
+      return next;
+    });
+  }, []);
+
+  // Expanding ancestors and scrolling are external DOM synchronization.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const element = listRef.current;
     if (!element || messages.length === 0) return;
 
-    if (userCount > userCountRef.current) {
-      stickToBottomRef.current = true;
-    }
+    const userAdded = userCount > userCountRef.current;
+    if (userAdded) stickToBottomRef.current = true;
     userCountRef.current = userCount;
 
-    if (stickToBottomRef.current) {
-      element.scrollTop = element.scrollHeight;
+    if (!isTree) {
+      if (stickToBottomRef.current) {
+        element.scrollTop = element.scrollHeight;
+      }
+      return;
     }
-  }, [messages, userCount]);
+
+    if (userAdded) {
+      const last = messages[messages.length - 1];
+      if (last) {
+        if (isTree) {
+          const ancestors = getThreadAncestors(forest, last.id);
+          setCollapsed((current) => {
+            const next = new Set(current);
+            let changed = false;
+            for (const ancestor of ancestors) {
+              if (next.delete(ancestor)) changed = true;
+            }
+            return changed ? next : current;
+          });
+        }
+        pendingScrollRef.current = {
+          id: last.id,
+          smooth: false,
+          highlight: false,
+        };
+        setScrollTick((value) => value + 1);
+      }
+    } else {
+      const last = messages[messages.length - 1];
+      if (
+        last?.kind === "discussion-note" &&
+        stickToBottomRef.current
+      ) {
+        pendingScrollRef.current = {
+          id: last.id,
+          smooth: false,
+          highlight: false,
+        };
+        setScrollTick((value) => value + 1);
+      }
+    }
+  }, [forest, isTree, messages, userCount]);
+
+  useEffect(() => {
+    if (!isTree || !streamingId) {
+      if (!streamingId) autoStreamingIdRef.current = null;
+      return;
+    }
+    if (autoStreamingIdRef.current === streamingId) return;
+    autoStreamingIdRef.current = streamingId;
+    if (!stickToBottomRef.current) return;
+
+    const ancestors = getThreadAncestors(forest, streamingId);
+    setCollapsed((current) => {
+      const next = new Set(current);
+      let changed = false;
+      for (const ancestor of ancestors) {
+        if (next.delete(ancestor)) changed = true;
+      }
+      return changed ? next : current;
+    });
+    pendingScrollRef.current = {
+      id: streamingId,
+      smooth: false,
+      highlight: false,
+    };
+    setScrollTick((value) => value + 1);
+  }, [forest, isTree, streamingId]);
+
+  useEffect(() => {
+    if (!isTree || !streamingId || !stickToBottomRef.current) return;
+    scrollToMessage(streamingId, "auto");
+  }, [isTree, messages, scrollToMessage, streamingId]);
+
+  useEffect(() => {
+    if (isTree && !previousTreeRef.current) {
+      stickToBottomRef.current = true;
+      const target = streamingId ?? messages[messages.length - 1]?.id;
+      if (target) {
+        const ancestors = getThreadAncestors(forest, target);
+        setCollapsed((current) => {
+          const next = new Set(current);
+          for (const ancestor of ancestors) next.delete(ancestor);
+          return next.size === current.size ? current : next;
+        });
+        pendingScrollRef.current = {
+          id: target,
+          smooth: false,
+          highlight: false,
+        };
+        setScrollTick((value) => value + 1);
+      }
+    } else if (!isTree && previousTreeRef.current) {
+      stickToBottomRef.current = true;
+      const target = streamingId ?? messages[messages.length - 1]?.id;
+      if (target) {
+        pendingScrollRef.current = {
+          id: target,
+          smooth: false,
+          highlight: false,
+        };
+        setScrollTick((value) => value + 1);
+      }
+    }
+    previousTreeRef.current = isTree;
+  }, [forest, isTree, messages, streamingId]);
+
+  useEffect(() => {
+    const pending = pendingScrollRef.current;
+    if (!pending) return;
+    if (!scrollToMessage(pending.id, pending.smooth ? "smooth" : "auto")) {
+      return;
+    }
+
+    pendingScrollRef.current = null;
+    if (pending.highlight) flash(pending.id);
+  }, [collapsed, flash, isTree, messages, scrollTick, scrollToMessage]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current !== null) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
+    };
+  }, []);
 
   function handleScroll() {
     const element = listRef.current;
     if (!element) return;
     stickToBottomRef.current =
       element.scrollHeight - element.scrollTop - element.clientHeight < 64;
+  }
+
+  const examples = discussionMode
+    ? DISCUSSION_EXAMPLES
+    : skillMode
+      ? SKILL_EXAMPLES
+      : GENERAL_EXAMPLES;
+
+  function renderNote(message: ChatMessage): ReactNode {
+    return (
+      <div
+        key={message.id}
+        id={`chat-message-${message.id}`}
+        className={cn(
+          "flex items-center gap-3 py-1",
+          highlightId === message.id &&
+            "rounded-xl ring-2 ring-orange/40 ring-offset-2 ring-offset-bg",
+        )}
+      >
+        <span className="h-px flex-1 bg-line" aria-hidden />
+        <p className="max-w-[85%] text-center text-[11px] leading-5 text-muted">
+          {message.content}
+        </p>
+        <span className="h-px flex-1 bg-line" aria-hidden />
+      </div>
+    );
+  }
+
+  function renderSummary(message: ChatMessage): ReactNode {
+    return (
+      <details
+        key={message.id}
+        id={`chat-message-${message.id}`}
+        className={cn(
+          "rounded-xl border border-dashed border-line bg-surface px-3 py-2",
+          highlightId === message.id &&
+            "ring-2 ring-orange/40 ring-offset-2 ring-offset-bg",
+        )}
+      >
+        <summary className="cursor-pointer text-xs text-muted">
+          早期对话摘要
+        </summary>
+        <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-6 text-ink">
+          {message.content}
+        </p>
+      </details>
+    );
+  }
+
+  function renderItem(
+    message: ChatMessage,
+    options: { treeMode?: boolean; treeDepth?: number } = {},
+  ): ReactNode {
+    return (
+      <ChatMessageItem
+        message={message}
+        messages={messages}
+        searching={searching}
+        discussionMode={discussionMode}
+        discussionParticipants={discussionParticipants}
+        discussionIntents={discussionIntents}
+        discussionIntentTargets={discussionIntentTargets}
+        treeMode={options.treeMode}
+        treeDepth={options.treeDepth}
+        showReasoning={showReasoning}
+        onJumpMessage={revealAndJump}
+        onQuoteMessage={onQuoteMessage}
+      />
+    );
+  }
+
+  function renderTree(node: ThreadNode): ReactNode {
+    const hasChildren = node.children.length > 0;
+    const nodeCollapsed = collapsed.has(node.message.id);
+    const highlighted = highlightId === node.message.id;
+
+    return (
+      <li
+        key={node.message.id}
+        id={`chat-message-${node.message.id}`}
+        className={cn(
+          "min-w-0",
+          highlighted &&
+            "rounded-xl ring-2 ring-orange/40 ring-offset-2 ring-offset-bg",
+        )}
+      >
+        <div className="flex min-w-0 items-start gap-1.5">
+          <div className="mt-0.5 w-7 shrink-0">
+            {hasChildren ? (
+              <button
+                type="button"
+                onClick={() => toggleCollapse(node.message.id)}
+                aria-expanded={!nodeCollapsed}
+                aria-label={
+                  nodeCollapsed
+                    ? `展开 ${node.children.length} 条回复`
+                    : `收起 ${node.children.length} 条回复`
+                }
+                className="inline-flex size-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-ink"
+              >
+                {nodeCollapsed ? (
+                  <ChevronRight className="size-4" aria-hidden />
+                ) : (
+                  <ChevronDown className="size-4" aria-hidden />
+                )}
+              </button>
+            ) : null}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {renderItem(node.message, {
+              treeMode: true,
+              treeDepth: node.depth,
+            })}
+            {node.orphan ? (
+              <p className="mt-1 text-[11px] text-muted">
+                原消息已省略
+              </p>
+            ) : null}
+            {hasChildren && nodeCollapsed ? (
+              <p className="mt-1.5 text-[11px] text-muted">
+                {node.children.length} 条回复已折叠
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        {hasChildren && !nodeCollapsed ? (
+          <ul
+            className={cn(
+              "mt-3 space-y-3 border-l border-line pl-3 sm:pl-4",
+              node.depth < 4 ? "ml-3 sm:ml-4" : "ml-0",
+            )}
+          >
+            {node.children.map((child) => renderTree(child))}
+          </ul>
+        ) : null}
+      </li>
+    );
   }
 
   return (
@@ -84,10 +482,12 @@ export function ChatMessageList({
             从一个具体问题开始
           </p>
           <p className="mt-1.5 text-sm text-muted">
-            下面是一些例子，点击填入输入框。
+            {discussionMode
+              ? "提出一个问题，参与者会依次发言并相互回应。"
+              : "下面是一些例子，点击填入输入框。"}
           </p>
           <ul className="mt-5 w-full max-w-md space-y-2">
-            {(skillMode ? SKILL_EXAMPLES : GENERAL_EXAMPLES).map((example) => (
+            {examples.map((example) => (
               <li key={example}>
                 <button
                   type="button"
@@ -100,124 +500,37 @@ export function ChatMessageList({
             ))}
           </ul>
         </div>
+      ) : isTree ? (
+        <div className="space-y-5">
+          {forest.summaries.map(renderSummary)}
+          <ul className="space-y-5">
+            {forest.roots.map((node) => renderTree(node))}
+          </ul>
+          {forest.notes.map(renderNote)}
+        </div>
       ) : (
         <div className="space-y-5">
-          {messages.map((message) =>
-            message.kind === "summary" ? (
-              <details
+          {messages.map((message) => {
+            if (message.kind === "discussion-note") {
+              return renderNote(message);
+            }
+            if (message.kind === "summary") {
+              return renderSummary(message);
+            }
+
+            return (
+              <div
                 key={message.id}
-                className="rounded-xl border border-dashed border-line bg-surface px-3 py-2"
+                id={`chat-message-${message.id}`}
+                className={cn(
+                  highlightId === message.id &&
+                    "rounded-xl ring-2 ring-orange/40 ring-offset-2 ring-offset-bg",
+                )}
               >
-                <summary className="cursor-pointer text-xs text-muted">
-                  早期对话摘要
-                </summary>
-                <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-6 text-ink">
-                  {message.content}
-                </p>
-              </details>
-            ) : (
-              <div key={message.id}>
-                <p className="mb-1 text-xs text-muted">
-                  {message.role === "user" ? "你" : "AI"}
-                </p>
-
-              {message.role === "user" ? (
-                <div className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-orange-soft px-4 py-2.5 text-sm leading-7 text-ink">
-                  {message.content}
-                </div>
-              ) : (
-                <div className="max-w-full">
-                  {message.reasoning ? (
-                    <details className="mb-2 rounded-lg border border-line bg-surface px-3 py-2">
-                      <summary className="cursor-pointer text-xs text-muted">
-                        思考过程
-                      </summary>
-                      <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-6 text-muted">
-                        {message.reasoning}
-                      </p>
-                    </details>
-                  ) : null}
-
-                  <div className="break-words rounded-2xl rounded-bl-md border border-line bg-surface px-4 py-3 text-sm leading-7 text-ink">
-                    {message.content ? (
-                      <ChatMarkdown content={message.content} />
-                    ) : (
-                      <span className="whitespace-pre-wrap">
-                        {message.status === "streaming"
-                          ? searching
-                            ? "正在搜索网页…"
-                            : message.reasoning
-                              ? "正在思考…"
-                              : "正在等待模型响应…"
-                          : message.status === "stopped"
-                            ? "已停止生成"
-                            : message.status === "error"
-                              ? "生成失败"
-                              : message.reasoning
-                                ? "模型只返回了思考过程，未给出正文。"
-                                : message.sources?.length
-                                  ? "搜索已完成，但模型没有生成回答。"
-                                  : ""}
-                      </span>
-                    )}
-                    {message.status === "streaming" && message.content ? (
-                      <span
-                        className="ml-0.5 inline-block h-4 w-1 animate-pulse bg-muted align-middle"
-                        aria-hidden
-                      />
-                    ) : null}
-                  </div>
-
-                  {message.sources && message.sources.length > 0 ? (
-                    <details className="mt-2 rounded-lg border border-line bg-surface px-3 py-2">
-                      <summary className="cursor-pointer text-xs text-muted">
-                        搜索来源（{message.sources.length}）
-                      </summary>
-                      <ol className="mt-2 space-y-2">
-                        {message.sources.map((source, index) => (
-                          <li
-                            key={`${source.url}-${index}`}
-                            className="break-words text-xs leading-5"
-                          >
-                            <a
-                              href={source.url}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              className="text-orange-strong underline decoration-orange/30 underline-offset-4 hover:text-orange"
-                            >
-                              [{index + 1}] {source.title}
-                            </a>
-                            {source.siteName || source.date ? (
-                              <span className="ml-1 text-muted">
-                                {[source.siteName, source.date?.slice(0, 10)]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </span>
-                            ) : null}
-                            {source.snippet ? (
-                              <p className="mt-0.5 text-muted">
-                                {source.snippet}
-                              </p>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ol>
-                    </details>
-                  ) : null}
-
-                  {message.status === "stopped" && message.content ? (
-                    <p className="mt-1.5 text-xs text-muted">已停止生成</p>
-                  ) : null}
-                  {message.status === "error" && message.content ? (
-                    <p className="mt-1.5 text-xs text-orange-strong">
-                      生成中断
-                    </p>
-                  ) : null}
-                </div>
-              )}
+                {renderItem(message)}
               </div>
-            ),
-          )}
+            );
+          })}
         </div>
       )}
     </div>
