@@ -23,8 +23,6 @@ import {
 } from "@/lib/chat-thread";
 import { cn } from "@/lib/utils";
 
-export type ChatView = "timeline" | "tree";
-
 type ChatMessageListProps = {
   messages: ChatMessage[];
   isStreaming: boolean;
@@ -35,7 +33,6 @@ type ChatMessageListProps = {
   discussionParticipants?: DiscussionParticipant[];
   discussionIntents?: Record<string, DiscussionIntentStatus>;
   discussionIntentTargets?: Record<string, string>;
-  view?: ChatView;
   showReasoning?: boolean;
   retryableMessageId?: string | null;
   onAnnounce?: (text: string) => void;
@@ -72,7 +69,6 @@ export function ChatMessageList({
   discussionParticipants = [],
   discussionIntents = {},
   discussionIntentTargets = {},
-  view = "timeline",
   showReasoning = true,
   retryableMessageId,
   onAnnounce,
@@ -90,7 +86,7 @@ export function ChatMessageList({
     highlight: boolean;
   } | null>(null);
   const autoStreamingIdRef = useRef<string | null>(null);
-  const previousTreeRef = useRef(false);
+  const enteredTreeRef = useRef(false);
 
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => new Set(),
@@ -98,7 +94,7 @@ export function ChatMessageList({
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [scrollTick, setScrollTick] = useState(0);
 
-  const isTree = discussionMode && view === "tree";
+  const isTree = discussionMode;
   const forest = useMemo(() => buildMessageForest(messages), [messages]);
   const streamingId =
     messages.find((message) => message.status === "streaming")?.id ?? null;
@@ -269,36 +265,27 @@ export function ChatMessageList({
   }, [isTree, messages, scrollToMessage, streamingId]);
 
   useEffect(() => {
-    if (isTree && !previousTreeRef.current) {
-      stickToBottomRef.current = true;
-      const target = streamingId ?? messages[messages.length - 1]?.id;
-      if (target) {
-        const ancestors = getThreadAncestors(forest, target);
-        setCollapsed((current) => {
-          const next = new Set(current);
-          for (const ancestor of ancestors) next.delete(ancestor);
-          return next.size === current.size ? current : next;
-        });
-        pendingScrollRef.current = {
-          id: target,
-          smooth: false,
-          highlight: false,
-        };
-        setScrollTick((value) => value + 1);
-      }
-    } else if (!isTree && previousTreeRef.current) {
-      stickToBottomRef.current = true;
-      const target = streamingId ?? messages[messages.length - 1]?.id;
-      if (target) {
-        pendingScrollRef.current = {
-          id: target,
-          smooth: false,
-          highlight: false,
-        };
-        setScrollTick((value) => value + 1);
-      }
+    if (!isTree || enteredTreeRef.current) {
+      enteredTreeRef.current = isTree;
+      return;
     }
-    previousTreeRef.current = isTree;
+    enteredTreeRef.current = true;
+    stickToBottomRef.current = true;
+    const target = streamingId ?? messages[messages.length - 1]?.id;
+    if (target) {
+      const ancestors = getThreadAncestors(forest, target);
+      setCollapsed((current) => {
+        const next = new Set(current);
+        for (const ancestor of ancestors) next.delete(ancestor);
+        return next.size === current.size ? current : next;
+      });
+      pendingScrollRef.current = {
+        id: target,
+        smooth: false,
+        highlight: false,
+      };
+      setScrollTick((value) => value + 1);
+    }
   }, [forest, isTree, messages, streamingId]);
 
   useEffect(() => {

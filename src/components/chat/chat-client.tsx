@@ -6,8 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   ExternalLink,
-  GitBranch,
-  List,
   MessageSquare,
   Settings2,
   Trash2,
@@ -52,13 +50,10 @@ import {
   normalizeSearchEndpoint,
   readChatSearch,
   readChatSettings,
-  readChatView,
   saveChatSearch,
   saveChatSettings,
-  saveChatView,
   validateChatSettings,
   type ChatSettings,
-  type ChatViewPreference,
   type ReasoningEffort,
 } from "@/lib/chat-settings";
 import { usePins } from "@/lib/use-pins";
@@ -391,8 +386,6 @@ export function ChatClient() {
   const [skillOptions, setSkillOptions] = useState<SkillOption[]>([]);
   const [searchEnabled, setSearchEnabled] = useState(true);
   const [mode, setMode] = useState<DiscussionMode>("single");
-  const [discussionView, setDiscussionView] =
-    useState<ChatViewPreference>("timeline");
   const [participantSlugs, setParticipantSlugs] = useState<string[]>([]);
   const [discussionMaxRounds, setDiscussionMaxRounds] = useState(
     DEFAULT_DISCUSSION_ROUNDS,
@@ -545,7 +538,6 @@ export function ChatClient() {
     }
     setHydrated(true);
     setSearchEnabled(readChatSearch());
-    setDiscussionView(readChatView());
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
@@ -719,13 +711,6 @@ export function ChatClient() {
     if (!saveChatSearch(next)) {
       setStorageWarning("浏览器存储不可用，联网搜索开关只对本次会话生效。");
     }
-  }
-
-  function toggleDiscussionView() {
-    const next: ChatViewPreference =
-      discussionView === "tree" ? "timeline" : "tree";
-    setDiscussionView(next);
-    saveChatView(next);
   }
 
   function switchSkill(value: string) {
@@ -2387,32 +2372,6 @@ export function ChatClient() {
               </Link>
             ) : null}
 
-            {mode === "discussion" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={toggleDiscussionView}
-                aria-pressed={discussionView === "tree"}
-                aria-label={
-                  discussionView === "tree"
-                    ? "切换为时间线视图"
-                    : "切换为树状视图"
-                }
-                title={
-                  discussionView === "tree"
-                    ? "切换为时间线视图"
-                    : "切换为树状视图"
-                }
-              >
-                {discussionView === "tree" ? (
-                  <List aria-hidden />
-                ) : (
-                  <GitBranch aria-hidden />
-                )}
-              </Button>
-            ) : null}
-
             <Button
               type="button"
               variant={mode === "discussion" ? "outline" : "ghost"}
@@ -2548,7 +2507,6 @@ export function ChatClient() {
           discussionParticipants={discussionParticipants}
           discussionIntents={discussionIntents}
           discussionIntentTargets={discussionIntentTargets}
-          view={mode === "discussion" ? discussionView : "timeline"}
           showReasoning={settings.showReasoning}
           retryableMessageId={retryableMessageId}
           onAnnounce={setAnnouncement}

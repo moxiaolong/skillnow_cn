@@ -6,7 +6,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from "react";
-import { Globe, Quote, Send, Square, X } from "lucide-react";
+import { Globe, Quote, Reply, Send, Square, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { ChatQuote } from "@/lib/chat-history";
@@ -88,21 +88,28 @@ export function ChatComposer({
       </label>
       {quote ? (
         <div className="mb-2 flex items-start gap-2 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs leading-5">
-          <Quote
-            className="mt-0.5 size-3.5 shrink-0 text-orange-strong"
-            aria-hidden
-          />
+          {discussionMode ? (
+            <Reply
+              className="mt-0.5 size-3.5 shrink-0 text-orange-strong"
+              aria-hidden
+            />
+          ) : (
+            <Quote
+              className="mt-0.5 size-3.5 shrink-0 text-orange-strong"
+              aria-hidden
+            />
+          )}
           <div className="min-w-0 flex-1">
             <p className="font-medium text-ink/70">
-              引用 {quote.speakerName}
+              {discussionMode ? "回复" : "引用"} {quote.speakerName}
             </p>
             <p className="line-clamp-2 text-muted">{quote.text}</p>
           </div>
           <button
             type="button"
             onClick={onClearQuote}
-            aria-label="取消引用"
-            title="取消引用"
+            aria-label={discussionMode ? "取消回复" : "取消引用"}
+            title={discussionMode ? "取消回复" : "取消引用"}
             className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-bg hover:text-ink"
           >
             <X className="size-3.5" aria-hidden />

@@ -1,6 +1,6 @@
 "use client";
 
-import { Quote } from "lucide-react";
+import { Quote, Reply } from "lucide-react";
 
 import { ChatMarkdown } from "@/components/chat/chat-markdown";
 import { DiscussionQuote } from "@/components/chat/discussion-quote";
@@ -123,6 +123,7 @@ export function ChatMessageItem({
     message.kind === undefined &&
     message.status !== "streaming" &&
     message.content.trim().length > 0;
+  const replyLabel = discussionMode ? "回复" : "引用";
 
   return (
     <>
@@ -152,16 +153,32 @@ export function ChatMessageItem({
             深层回复
           </span>
         ) : null}
+        {isUser && treeMode && message.quote ? (
+          <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px]">
+            回复 {message.quote.speakerName}
+          </span>
+        ) : null}
         {canQuote ? (
           <button
             type="button"
             onClick={() => onQuoteMessage?.(message)}
-            aria-label="引用这条消息"
-            title="引用这条消息"
-            className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted transition-opacity hover:bg-surface hover:text-ink sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+            aria-label={
+              discussionMode ? "回复这条消息" : "引用这条消息"
+            }
+            title={discussionMode ? "回复这条消息" : "引用这条消息"}
+            className={cn(
+              "ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted transition-opacity hover:bg-surface hover:text-ink",
+              discussionMode
+                ? "opacity-100"
+                : "sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100",
+            )}
           >
-            <Quote className="size-3.5" aria-hidden />
-            引用
+            {discussionMode ? (
+              <Reply className="size-3.5" aria-hidden />
+            ) : (
+              <Quote className="size-3.5" aria-hidden />
+            )}
+            {replyLabel}
           </button>
         ) : null}
       </div>

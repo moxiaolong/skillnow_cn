@@ -296,35 +296,3 @@ export function saveChatSearch(
     return false;
   }
 }
-
-export const CHAT_VIEW_KEY = "skillnow:chat-view:v1";
-
-export type ChatViewPreference = "timeline" | "tree";
-
-export function readChatView(
-  storage: StorageLike | null = getDefaultStorage(),
-): ChatViewPreference {
-  if (!storage) return "timeline";
-
-  try {
-    return storage.getItem(CHAT_VIEW_KEY) === "tree"
-      ? "tree"
-      : "timeline";
-  } catch {
-    return "timeline";
-  }
-}
-
-export function saveChatView(
-  view: ChatViewPreference,
-  storage: StorageLike | null = getDefaultStorage(),
-): boolean {
-  if (!storage) return false;
-
-  try {
-    storage.setItem(CHAT_VIEW_KEY, view);
-    return true;
-  } catch {
-    return false;
-  }
-}
