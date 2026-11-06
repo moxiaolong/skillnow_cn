@@ -22,7 +22,7 @@ export function SiteFooter() {
           <p className="mt-2 max-w-sm text-sm leading-7 text-muted">
             推荐：
             <a
-              href="https://soulstation.club/?utm_source=skillnow&utm_medium=referral&utm_campaign=footer"
+              href="https://soulstation.club/?entrance=skillnow"
               target="_blank"
               rel="noreferrer"
               className="text-orange-strong underline decoration-orange/30 underline-offset-4 transition-colors hover:text-orange"

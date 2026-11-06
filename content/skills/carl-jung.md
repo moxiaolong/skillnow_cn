@@ -50,7 +50,7 @@ disclaimers: [non-person, ai-accuracy, mental-health]
 relatedTool:
   label: "精神分析专家团"
   description: "想把这些视角用在一次完整的自我探索上？"
-  url: "https://soulstation.club/psychoanalysis?utm_source=skillnow&utm_medium=referral&utm_campaign=skill_detail"
+  url: "https://soulstation.club/?entrance=skillnow"
 featured: false
 order: 5
 draft: false

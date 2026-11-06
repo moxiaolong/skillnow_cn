@@ -42,7 +42,7 @@ disclaimers: [non-person, ai-accuracy, mental-health]
 relatedTool:                               # 可选：只有四个精神分析 Skill 配置
   label: 精神分析专家团
   description: 想把这些视角用在一次完整的自我探索上？
-  url: https://soulstation.club/psychoanalysis?utm_source=skillnow&utm_medium=referral&utm_campaign=skill_detail
+  url: https://soulstation.club/?entrance=skillnow
 featured: true                             # 是否进首页「常用清单」
 order: 1                                   # 默认排序 / 同分排序
 draft: false                               # true 不生成页面、不出现在列表
