@@ -80,6 +80,7 @@ import {
   clampDiscussionRounds,
   discussionContextKey,
   getStoredDiscussionPreferences,
+  isErrorDiscussionNote,
   isNoHandsDiscussionNote,
   isPassOnlyDiscussionMessage,
   makeChatQuote,
@@ -172,6 +173,80 @@ type SkillOption = {
 type DiscussionSpeaker = DiscussionParticipant & {
   prompt: string;
 };
+
+type DiscussionRetryState = {
+  messageId: string;
+  round: number;
+  completedRounds: number;
+  questionRound: number;
+  answeredSlugs: string[];
+  participants: DiscussionSpeaker[];
+  question: string;
+};
+
+const DISCUSSION_RETRY_KEY = "skillnow:chat-discussion-retry:v1";
+
+function readStoredDiscussionRetry(
+  contextKey: string,
+): DiscussionRetryState | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(DISCUSSION_RETRY_KEY);
+    if (!raw) return null;
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const record = parsed as Record<string, unknown>;
+    if (record.version !== 1 || record.contextKey !== contextKey) return null;
+    if (!record.state || typeof record.state !== "object") return null;
+
+    const state = record.state as Record<string, unknown>;
+    if (
+      typeof state.messageId !== "string" ||
+      typeof state.round !== "number" ||
+      typeof state.completedRounds !== "number" ||
+      typeof state.questionRound !== "number" ||
+      typeof state.question !== "string" ||
+      !Array.isArray(state.answeredSlugs) ||
+      !Array.isArray(state.participants) ||
+      state.participants.length === 0
+    ) {
+      return null;
+    }
+
+    return state as unknown as DiscussionRetryState;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredDiscussionRetry(
+  contextKey: string,
+  state: DiscussionRetryState,
+): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      DISCUSSION_RETRY_KEY,
+      JSON.stringify({ version: 1, contextKey, state }),
+    );
+  } catch {
+    // Retry persistence is optional; keep the in-memory state.
+  }
+}
+
+function clearStoredDiscussionRetry(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(DISCUSSION_RETRY_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 function parseSkillOptions(index: unknown): SkillOption[] {
   if (!Array.isArray(index)) return [];
@@ -384,6 +459,9 @@ export function ChatClient() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [quoteTarget, setQuoteTarget] = useState<ChatQuote | null>(null);
+  const [retryableMessageId, setRetryableMessageId] = useState<string | null>(
+    null,
+  );
   const [isStreaming, setIsStreaming] = useState(false);
   const [searching, setSearching] = useState(false);
   const [compressing, setCompressing] = useState(false);
@@ -399,6 +477,7 @@ export function ChatClient() {
   const streamingRef = useRef(false);
   const messagesRef = useRef<ChatMessage[]>([]);
   const contextKeyRef = useRef(contextKey);
+  const discussionRetryRef = useRef<DiscussionRetryState | null>(null);
 
   const commitMessages = useCallback((next: ChatMessage[]) => {
     messagesRef.current = next;
@@ -428,6 +507,8 @@ export function ChatClient() {
     setDiscussionRunning(false);
     setPreparing(false);
     setDiscussionStatus(null);
+    discussionRetryRef.current = null;
+    setRetryableMessageId(null);
   }, []);
 
   useEffect(() => {
@@ -498,18 +579,33 @@ export function ChatClient() {
     /* eslint-disable react-hooks/set-state-in-effect */
     setError(null);
     setQuoteTarget(null);
+    setRetryableMessageId(null);
+    discussionRetryRef.current = null;
     setSkill(null);
     setSkillError(null);
     setSkillLoading(false);
     setHistoryLoaded(false);
-    commitMessages(
-      readConversation(contextKey).filter(
-        (message) =>
-          !isNoHandsDiscussionNote(message) &&
-          !isPassOnlyDiscussionMessage(message),
-      ),
+    const loadedMessages = readConversation(contextKey).filter(
+      (message) =>
+        !isNoHandsDiscussionNote(message) &&
+        !isErrorDiscussionNote(message) &&
+        !isPassOnlyDiscussionMessage(message),
     );
+    commitMessages(loadedMessages);
     setHistoryLoaded(true);
+
+    const storedRetry = readStoredDiscussionRetry(contextKey);
+    if (
+      storedRetry &&
+      loadedMessages.some(
+        (message) => message.id === storedRetry.messageId,
+      )
+    ) {
+      discussionRetryRef.current = storedRetry;
+      setRetryableMessageId(storedRetry.messageId);
+    } else if (storedRetry) {
+      clearStoredDiscussionRetry();
+    }
 
     if (mode === "discussion" || !skillSlug) return;
 
@@ -717,6 +813,9 @@ export function ChatClient() {
     commitMessages([]);
     setError(null);
     setQuoteTarget(null);
+    setRetryableMessageId(null);
+    discussionRetryRef.current = null;
+    clearStoredDiscussionRetry();
     setSearching(false);
     setCompressing(false);
     setDiscussionStatus(null);
@@ -910,6 +1009,12 @@ export function ChatClient() {
     chatSettings: ChatSettings;
     endpoint: string;
     searchEndpoint: string | null;
+    resume?: {
+      round: number;
+      completedRounds: number;
+      questionRound: number;
+      answeredSlugs: string[];
+    };
   }) {
     const {
       participants,
@@ -919,15 +1024,16 @@ export function ChatClient() {
       chatSettings,
       endpoint,
       searchEndpoint,
+      resume,
     } = params;
     const isActive = () =>
       requestTokenRef.current === token && discussionRunningRef.current;
-    let round = 1;
-    let completedRounds = 0;
+    let round = resume?.round ?? 1;
+    let completedRounds = resume?.completedRounds ?? 0;
     let endReason: DiscussionEndReason | null = null;
     let endRoundLimit = discussionMaxRounds;
-    let questionRound = 1;
-    let answeredThisQuestion = new Set<string>();
+    let questionRound = resume?.questionRound ?? 1;
+    let answeredThisQuestion = new Set(resume?.answeredSlugs ?? []);
     let lastSeenUserMessageId =
       discussionStateRef.current.latestUserMessageId;
 
@@ -1456,15 +1562,36 @@ export function ChatClient() {
             caught instanceof ChatRequestError
               ? caught.detail
               : undefined;
+          const errorText = [title, detail].filter(Boolean).join(" ");
           const failed = messagesRef.current.map((message) =>
             message.id === assistantMessage.id
-              ? { ...message, status: "error" as const }
+              ? {
+                  ...message,
+                  status: "error" as const,
+                  error: errorText,
+                }
               : message,
           );
           commitMessages(failed);
           persistMessages(failed, contextKey);
-          setError({ title, detail });
-          setAnnouncement(title);
+          discussionRetryRef.current = {
+            messageId: assistantMessage.id,
+            round,
+            completedRounds,
+            questionRound,
+            answeredSlugs: [...answeredThisQuestion].filter(
+              (slug) => slug !== participant.slug,
+            ),
+            participants: participants.map((item) => ({ ...item })),
+            question: topic,
+          };
+          saveStoredDiscussionRetry(
+            contextKey,
+            discussionRetryRef.current,
+          );
+          setRetryableMessageId(assistantMessage.id);
+          setError(null);
+          setAnnouncement("发言失败，可在消息上重试");
           endReason = "error";
           break discussionLoop;
         }
@@ -1487,6 +1614,8 @@ export function ChatClient() {
         setAnnouncement("讨论已结束");
         return;
       }
+
+      if (reason === "error") return;
 
       const noteRound =
         reason === "max-rounds" || reason === "hard-cap"
@@ -1528,6 +1657,10 @@ export function ChatClient() {
 
     const text = input.trim();
     if (!text) return;
+
+    discussionRetryRef.current = null;
+    setRetryableMessageId(null);
+    clearStoredDiscussionRetry();
 
     if (participantSlugs.length < MIN_DISCUSSION_PARTICIPANTS) {
       setError({ title: "请至少选择 2 个参与 Skill" });
@@ -1668,6 +1801,100 @@ export function ChatClient() {
         preparingRef.current = false;
         streamingRef.current = false;
         discussionRunningRef.current = false;
+        setIsStreaming(false);
+        setDiscussionRunning(false);
+        setPreparing(false);
+        setSearching(false);
+        setDiscussionStatus(null);
+      }
+    }
+  }
+
+  async function retryDiscussionMessage(messageId: string) {
+    const retry = discussionRetryRef.current;
+    if (!retry || retry.messageId !== messageId) return;
+    if (streamingRef.current || preparingRef.current) return;
+
+    const validation = validateChatSettings(settings);
+    if (!validation.ok) {
+      setSettingsOpen(true);
+      setSettingsError({
+        field: validation.field,
+        message: validation.error,
+      });
+      setError({ title: validation.error });
+      setAnnouncement(validation.error);
+      return;
+    }
+
+    let searchEndpoint: string | null = null;
+    if (searchEnabled) {
+      const normalized = normalizeSearchEndpoint(validation.settings.apiUrl);
+      if (!normalized.ok) {
+        setSettingsOpen(true);
+        setSettingsError({ field: "apiUrl", message: normalized.error });
+        setError({ title: "联网搜索配置无效", detail: normalized.error });
+        setAnnouncement(normalized.error);
+        return;
+      }
+      searchEndpoint = normalized.endpoint;
+    }
+
+    discussionRetryRef.current = null;
+    setRetryableMessageId(null);
+    clearStoredDiscussionRetry();
+
+    const next = messagesRef.current.filter(
+      (message) => message.id !== messageId,
+    );
+    commitMessages(next);
+    persistMessages(next, contextKey);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const token = requestTokenRef.current + 1;
+    requestTokenRef.current = token;
+    discussionRunningRef.current = true;
+    streamingRef.current = true;
+    setIsStreaming(true);
+    setDiscussionRunning(true);
+    setPreparing(false);
+    setError(null);
+    setAnnouncement("正在重试…");
+
+    try {
+      await runDiscussion({
+        participants: retry.participants,
+        controller,
+        token,
+        question: retry.question,
+        chatSettings: validation.settings,
+        endpoint: validation.endpoint,
+        searchEndpoint,
+        resume: {
+          round: retry.round,
+          completedRounds: retry.completedRounds,
+          questionRound: retry.questionRound,
+          answeredSlugs: retry.answeredSlugs,
+        },
+      });
+    } catch (caught) {
+      if (requestTokenRef.current !== token) return;
+      if (isAbortError(caught)) return;
+
+      const title =
+        caught instanceof ChatRequestError
+          ? caught.message
+          : "无法重试讨论";
+      const detail =
+        caught instanceof ChatRequestError ? caught.detail : undefined;
+      setError({ title, detail });
+      setAnnouncement(title);
+    } finally {
+      if (requestTokenRef.current === token) {
+        abortRef.current = null;
+        discussionRunningRef.current = false;
+        streamingRef.current = false;
         setIsStreaming(false);
         setDiscussionRunning(false);
         setPreparing(false);
@@ -2323,9 +2550,13 @@ export function ChatClient() {
           discussionIntentTargets={discussionIntentTargets}
           view={mode === "discussion" ? discussionView : "timeline"}
           showReasoning={settings.showReasoning}
+          retryableMessageId={retryableMessageId}
           onAnnounce={setAnnouncement}
           onPickExample={pickExample}
           onQuoteMessage={handleQuoteMessage}
+          onRetryMessage={(messageId) => {
+            void retryDiscussionMessage(messageId);
+          }}
         />
 
         {mode === "single" ? (

@@ -15,6 +15,7 @@ import {
   discussionContextKey,
   getStoredDiscussionPreferences,
   getDiscussionResponseStatuses,
+  isErrorDiscussionNote,
   isNoHandsDiscussionNote,
   isPassOnlyDiscussionMessage,
   makeChatQuote,
@@ -310,6 +311,23 @@ describe("discussion prompts", () => {
     expect(
       isNoHandsDiscussionNote(
         message("n3", "assistant", "讨论结束：没有人举手想继续发言（第 2 轮）。"),
+      ),
+    ).toBe(false);
+  });
+
+  it("identifies interrupted notes for hiding", () => {
+    expect(
+      isErrorDiscussionNote(
+        message("n1", "assistant", "讨论已中断（第 2 轮）。", {
+          kind: "discussion-note",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isErrorDiscussionNote(
+        message("n2", "assistant", "讨论结束：达到 3 轮上限。", {
+          kind: "discussion-note",
+        }),
       ),
     ).toBe(false);
   });

@@ -94,8 +94,10 @@ export function ChatMessageItem({
   treeMode = false,
   treeDepth,
   showReasoning = true,
+  retryableMessageId,
   onJumpMessage,
   onQuoteMessage,
+  onRetryMessage,
 }: {
   message: ChatMessage;
   messages: ChatMessage[];
@@ -107,8 +109,10 @@ export function ChatMessageItem({
   treeMode?: boolean;
   treeDepth?: number;
   showReasoning?: boolean;
+  retryableMessageId?: string | null;
   onJumpMessage: (messageId: string) => void;
   onQuoteMessage?: (message: ChatMessage) => void;
+  onRetryMessage?: (messageId: string) => void;
 }) {
   const isUser = message.role === "user";
   const speakerName = message.speaker?.name;
@@ -243,6 +247,22 @@ export function ChatMessageItem({
               />
             ) : null}
           </div>
+
+          {message.error ? (
+            <div className="mt-2 rounded-lg border border-orange/30 bg-orange-soft/40 px-3 py-2 text-xs leading-5 text-orange-strong">
+              <p className="break-words">{message.error}</p>
+              {message.id === retryableMessageId && onRetryMessage ? (
+                <button
+                  type="button"
+                  onClick={() => onRetryMessage(message.id)}
+                  aria-label="重试这次发言"
+                  className="mt-1.5 inline-flex items-center rounded-md border border-orange/30 bg-bg px-2 py-0.5 text-[11px] font-medium text-orange-strong transition-colors hover:border-orange"
+                >
+                  重试
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           {discussionMode && !treeMode ? (
             <MessageResponses

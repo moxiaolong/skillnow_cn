@@ -660,6 +660,15 @@ export function isNoHandsDiscussionNote(message: ChatMessage): boolean {
   );
 }
 
+export const ERROR_DISCUSSION_NOTE_PREFIX = "讨论已中断";
+
+export function isErrorDiscussionNote(message: ChatMessage): boolean {
+  return (
+    message.kind === "discussion-note" &&
+    message.content.trimStart().startsWith(ERROR_DISCUSSION_NOTE_PREFIX)
+  );
+}
+
 export function isPassOnlyDiscussionMessage(message: ChatMessage): boolean {
   return (
     message.role === "assistant" &&

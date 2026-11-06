@@ -75,6 +75,20 @@ describe("trimMessages", () => {
     expect(trimmed.map((item) => item.content)).toEqual(["你好"]);
   });
 
+  it("keeps failed messages that only carry an error", () => {
+    const trimmed = trimMessages([
+      message("user", "问题"),
+      message("assistant", "", {
+        status: "error",
+        error: "无法连接模型平台。",
+        speaker: { slug: "freud", name: "弗洛伊德" },
+      }),
+    ]);
+
+    expect(trimmed).toHaveLength(2);
+    expect(trimmed[1].error).toBe("无法连接模型平台。");
+  });
+
   it("keeps partial streaming content as stopped", () => {
     const trimmed = trimMessages([
       message("assistant", "生成到一半", { status: "streaming" }),

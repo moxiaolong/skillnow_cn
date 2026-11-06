@@ -32,6 +32,7 @@ export type ChatMessage = {
   replyToId?: string;
   quote?: ChatQuote;
   interjection?: boolean;
+  error?: string;
   status: ChatStatus;
   createdAt: number;
 };
@@ -48,6 +49,7 @@ export type StoredChatMessage = {
   replyToId?: string;
   quote?: ChatQuote;
   interjection?: boolean;
+  error?: string;
   status: Exclude<ChatStatus, "streaming">;
   createdAt: number;
 };
@@ -185,10 +187,15 @@ function parseStoredMessage(value: unknown): StoredChatMessage | null {
       : undefined;
   const quote = parseChatQuote(value.quote);
   const interjection = value.interjection === true ? true : undefined;
+  const error =
+    typeof value.error === "string" && value.error.trim()
+      ? value.error.trim().slice(0, 1000)
+      : undefined;
   if (
     content.trim().length === 0 &&
     (typeof reasoning !== "string" || reasoning.trim().length === 0) &&
-    !sources
+    !sources &&
+    !error
   ) {
     return null;
   }
@@ -208,6 +215,7 @@ function parseStoredMessage(value: unknown): StoredChatMessage | null {
     ...(replyToId ? { replyToId } : {}),
     ...(quote ? { quote } : {}),
     ...(interjection ? { interjection } : {}),
+    ...(error ? { error } : {}),
     status: isStoredStatus(status) ? status : "complete",
     createdAt,
   };
@@ -289,14 +297,24 @@ export function trimMessages(messages: ChatMessage[]): StoredChatMessage[] {
       typeof message.replyToId === "string" && message.replyToId.trim()
         ? message.replyToId.trim().slice(0, 200)
         : undefined;
+    const error =
+      typeof message.error === "string" && message.error.trim()
+        ? message.error.trim().slice(0, 1000)
+        : undefined;
 
-    if (message.content.trim().length === 0 && !reasoning && !sources) {
+    if (
+      message.content.trim().length === 0 &&
+      !reasoning &&
+      !sources &&
+      !error
+    ) {
       continue;
     }
     if (
       message.status === "error" &&
       message.content.trim().length === 0 &&
-      !sources
+      !sources &&
+      !error
     ) {
       continue;
     }
@@ -313,6 +331,7 @@ export function trimMessages(messages: ChatMessage[]): StoredChatMessage[] {
       ...(replyToId ? { replyToId } : {}),
       ...(quote ? { quote } : {}),
       ...(message.interjection === true ? { interjection: true } : {}),
+      ...(error ? { error } : {}),
       status: message.status === "streaming" ? "stopped" : message.status,
       createdAt: message.createdAt,
     });
@@ -334,6 +353,7 @@ export function trimMessages(messages: ChatMessage[]): StoredChatMessage[] {
       message.content.length +
       (message.reasoning?.length ?? 0) +
       (message.quote?.text.length ?? 0) +
+      (message.error?.length ?? 0) +
       sourceChars;
 
     if (kept.length > 0 && chars + length > MAX_CHARS_PER_CONVERSATION) break;

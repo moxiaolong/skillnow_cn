@@ -37,9 +37,11 @@ type ChatMessageListProps = {
   discussionIntentTargets?: Record<string, string>;
   view?: ChatView;
   showReasoning?: boolean;
+  retryableMessageId?: string | null;
   onAnnounce?: (text: string) => void;
   onPickExample: (text: string) => void;
   onQuoteMessage?: (message: ChatMessage) => void;
+  onRetryMessage?: (messageId: string) => void;
 };
 
 const GENERAL_EXAMPLES = [
@@ -72,9 +74,11 @@ export function ChatMessageList({
   discussionIntentTargets = {},
   view = "timeline",
   showReasoning = true,
+  retryableMessageId,
   onAnnounce,
   onPickExample,
   onQuoteMessage,
+  onRetryMessage,
 }: ChatMessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -387,8 +391,10 @@ export function ChatMessageList({
         treeMode={options.treeMode}
         treeDepth={options.treeDepth}
         showReasoning={showReasoning}
+        retryableMessageId={retryableMessageId}
         onJumpMessage={revealAndJump}
         onQuoteMessage={onQuoteMessage}
+        onRetryMessage={onRetryMessage}
       />
     );
   }
