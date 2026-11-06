@@ -5,6 +5,7 @@ import { Logo } from "@/components/site/logo";
 const FOOTER_LINKS = [
   { href: "/skills/", label: "全部 Skill" },
   { href: "/rankings/", label: "榜单" },
+  { href: "/chat/", label: "AI 对话" },
   { href: "/about/", label: "关于" },
   { href: "/privacy/", label: "隐私" },
   { href: "/terms/", label: "条款" },
@@ -17,7 +18,19 @@ export function SiteFooter() {
         <div>
           <Logo />
           <p className="mt-3 max-w-sm text-sm leading-7 text-muted">
-            整理者日常在用的 AI Skill。觉得好用就放出来，大家自取。
+            精选一些人物 Skill。
+          </p>
+          <p className="mt-2 max-w-sm text-sm leading-7 text-muted">
+            推荐：
+            <a
+              href="https://soulstation.club/?utm_source=skillnow&utm_medium=referral&utm_campaign=footer"
+              target="_blank"
+              rel="noreferrer"
+              className="text-orange-strong underline decoration-orange/30 underline-offset-4 transition-colors hover:text-orange"
+            >
+              SoulStation
+            </a>
+            <span> · MBTI、AI泛心理学</span>
           </p>
         </div>
 
@@ -45,7 +58,18 @@ export function SiteFooter() {
 
       <div className="border-t border-line">
         <div className="container-page flex flex-col gap-2 py-4 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 北京此在科技有限公司 · SkillNow</p>
+          <p>
+            © 2026{" "}
+            <a
+              href="https://dasein.work/"
+              target="_blank"
+              rel="noreferrer"
+              className="transition-colors hover:text-ink"
+            >
+              北京此在科技有限公司
+            </a>{" "}
+            · SkillNow
+          </p>
           <p>
             <a
               href="https://beian.miit.gov.cn/"
@@ -53,7 +77,7 @@ export function SiteFooter() {
               rel="noreferrer"
               className="transition-colors hover:text-ink"
             >
-              京ICP备XXXXXXXX号
+              京ICP备2024048051号-7
             </a>
           </p>
         </div>

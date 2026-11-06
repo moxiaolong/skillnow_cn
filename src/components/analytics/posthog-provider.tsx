@@ -7,6 +7,8 @@ export function PostHogProvider() {
   const pathname = usePathname();
 
   useEffect(() => {
+    if (pathname.startsWith("/chat")) return;
+
     const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     if (!key) return;
 

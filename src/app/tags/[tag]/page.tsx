@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/seo/json-ld";
-import { ReactionsProvider } from "@/components/skill/reactions-context";
 import { SkillGrid } from "@/components/skill/skill-grid";
 import { TagLink } from "@/components/skill/tag-link";
 import { toSkillCardData } from "@/lib/skill-card-data";
@@ -54,12 +53,10 @@ export default async function TagPage({ params }: PageProps) {
 
   const skills = getSkillsByTag(tag).map(toSkillCardData);
   const otherTags = allTags.filter((item) => item.slug !== tag).slice(0, 10);
-  const ids = skills.map((skill) => skill.slug);
   const title = `${definition.label} Skill`;
 
   return (
-    <ReactionsProvider ids={ids}>
-      <div className="container-page py-12 sm:py-16">
+    <div className="container-page py-12 sm:py-16">
         <nav
           aria-label="面包屑"
           className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted"
@@ -118,7 +115,6 @@ export default async function TagPage({ params }: PageProps) {
             })),
           }}
         />
-      </div>
-    </ReactionsProvider>
+    </div>
   );
 }

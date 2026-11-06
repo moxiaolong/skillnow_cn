@@ -9,15 +9,20 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { ArticleFooterNote } from "@/components/skill/article-footer-note";
 import { BackToTop } from "@/components/skill/back-to-top";
 import { ExampleQuestions } from "@/components/skill/example-questions";
-import { ReactionsProvider } from "@/components/skill/reactions-context";
+import { ReaderBrief } from "@/components/skill/reader-brief";
 import { ReadingProgress } from "@/components/skill/reading-progress";
 import { RelatedSkills } from "@/components/skill/related-skills";
 import { SkillActions } from "@/components/skill/skill-actions";
+import { SkillChatCTA } from "@/components/skill/skill-chat-cta";
 import { TableOfContents } from "@/components/skill/table-of-contents";
 import { TagLink } from "@/components/skill/tag-link";
 import { UseNotes } from "@/components/skill/use-notes";
 import { RelatedToolCTA } from "@/components/soulstation/related-tool-cta";
 import { extractToc, renderMarkdown } from "@/lib/markdown";
+import {
+  findCoreModelAnchor,
+  getReaderBrief,
+} from "@/lib/reader-briefs";
 import { toSkillCardData } from "@/lib/skill-card-data";
 import {
   formatUpdatedAt,
@@ -88,14 +93,15 @@ export default async function SkillPage({ params }: PageProps) {
 
   const html = await renderMarkdown(skill.displayBody);
   const toc = extractToc(skill.displayBody);
+  const brief = getReaderBrief(skill.slug);
+  const coreModelAnchor = findCoreModelAnchor(toc);
   const related = getRelatedSkills(skill, 3).map(toSkillCardData);
-  const reactionIds = [skill.slug, ...related.map((item) => item.slug)];
   const primaryTag = skill.tags[0];
   const primaryTagLabel = skill.tagLabels[0];
   const visibleTags = skill.tags.slice(0, 3);
 
   return (
-    <ReactionsProvider ids={reactionIds}>
+    <>
       <ReadingProgress />
 
       <article className="container-page py-8 sm:py-12">
@@ -149,9 +155,17 @@ export default async function SkillPage({ params }: PageProps) {
 
             <div className="mt-6">
               <SkillActions slug={skill.slug} />
+              <SkillChatCTA
+                slug={skill.slug}
+                name={skill.shortTitle}
+                className="mt-4"
+              />
             </div>
 
             <div className="mt-10 space-y-8">
+              {brief ? (
+                <ReaderBrief brief={brief} anchorId={coreModelAnchor} />
+              ) : null}
               <UseNotes note={skill.note} />
               <ExampleQuestions
                 examples={skill.examples}
@@ -251,6 +265,6 @@ export default async function SkillPage({ params }: PageProps) {
           ],
         }}
       />
-    </ReactionsProvider>
+    </>
   );
 }

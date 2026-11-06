@@ -6,7 +6,7 @@ import { toSkillCardData } from "@/lib/skill-card-data";
 import { getPublishedSkills, getTagsWithCounts } from "@/lib/skills";
 
 const DESCRIPTION =
-  "浏览全部 AI Skill：按人物、主题或标签搜索，支持默认、最近更新和最有用的排序。";
+  "浏览全部 AI Skill：按人物、主题或标签搜索，支持默认和最近更新排序。";
 
 export const metadata: Metadata = {
   title: "全部 Skill",

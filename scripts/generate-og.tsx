@@ -242,7 +242,7 @@ async function main() {
   await renderOg(
     {
       eyebrow: "CURATED AI SKILLS",
-      title: "把大师的思维方式，装进你的 AI。",
+      title: "装进你的 AI，或装进你的脑子。",
       subtitle: "整理者日常在用的 AI Skill · 开发者自用清单",
       tags: ["心理学", "哲学", "商业", "决策"],
       footer: "整理者日常在用的 AI Skill",

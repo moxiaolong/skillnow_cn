@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const NAV_LINKS = [
   { href: "/skills/", label: "全部 Skill" },
   { href: "/rankings/", label: "榜单" },
+  { href: "/chat/", label: "AI 对话" },
   { href: "/about/", label: "关于" },
 ];
 
@@ -22,6 +23,7 @@ export function SiteHeader() {
 
   function isActive(href: string) {
     if (href === "/skills/") return pathname.startsWith("/skills");
+    if (href === "/chat/") return pathname.startsWith("/chat");
     return pathname === href;
   }
 

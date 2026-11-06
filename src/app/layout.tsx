@@ -9,7 +9,7 @@ import { SiteHeader } from "@/components/site/header";
 
 const SITE_NAME = "SkillNow";
 const SITE_DESCRIPTION =
-  "整理者日常在用的 AI Skill。收录弗洛伊德、荣格、黑格尔、芒格、雷军等人物思维 Skill，支持全文阅读、复制与下载。";
+  "整理者日常在用的 AI Skill。收录弗洛伊德、荣格、黑格尔、芒格、雷军等人物思维 Skill，可复制给 AI，也可以当作方法自己读。";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://skillnow.cn"),

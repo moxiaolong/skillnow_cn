@@ -11,10 +11,6 @@ import { Search, X } from "lucide-react";
 
 import { SkillGrid } from "@/components/skill/skill-grid";
 import type { SkillCardData } from "@/components/skill/skill-card";
-import {
-  ReactionsProvider,
-  useReactions,
-} from "@/components/skill/reactions-context";
 import { cn } from "@/lib/utils";
 
 export type TagOption = {
@@ -23,12 +19,11 @@ export type TagOption = {
   count: number;
 };
 
-type SortOption = "default" | "latest" | "popular";
+type SortOption = "default" | "latest";
 
 const SORT_LABELS: Record<SortOption, string> = {
   default: "默认排序",
   latest: "最近更新",
-  popular: "最有用的",
 };
 
 export function SkillsExplorer({
@@ -38,12 +33,7 @@ export function SkillsExplorer({
   skills: SkillCardData[];
   tags: TagOption[];
 }) {
-  const ids = useMemo(() => skills.map((skill) => skill.slug), [skills]);
-  return (
-    <ReactionsProvider ids={ids}>
-      <ExplorerInner skills={skills} tags={tags} />
-    </ReactionsProvider>
-  );
+  return <ExplorerInner skills={skills} tags={tags} />;
 }
 
 function ExplorerInner({
@@ -53,7 +43,6 @@ function ExplorerInner({
   skills: SkillCardData[];
   tags: TagOption[];
 }) {
-  const { getCount, getScore } = useReactions();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -120,30 +109,12 @@ function ExplorerInner({
       );
     }
 
-    if (sort === "popular") {
-      return [...tagFiltered].sort((a, b) => {
-        const scoreDiff = getScore(b.slug) - getScore(a.slug);
-        if (Math.abs(scoreDiff) > 1e-9) return scoreDiff;
-        const upDiff = getCount(b.slug).up - getCount(a.slug).up;
-        if (upDiff !== 0) return upDiff;
-        return a.order - b.order;
-      });
-    }
-
     if (!trimmed) {
       return [...tagFiltered].sort((a, b) => a.order - b.order);
     }
 
     return tagFiltered;
-  }, [
-    deferredQuery,
-    fuse,
-    getCount,
-    getScore,
-    selectedTags,
-    skills,
-    sort,
-  ]);
+  }, [deferredQuery, fuse, selectedTags, skills, sort]);
 
   function toggleTag(tag: string) {
     setSelectedTags((current) =>

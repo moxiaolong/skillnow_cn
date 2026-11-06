@@ -57,3 +57,17 @@ export const skillFrontmatterSchema = z.object({
 });
 
 export type SkillFrontmatter = z.infer<typeof skillFrontmatterSchema>;
+
+export const readerBriefSchema = z.object({
+  takeaways: z.array(z.string().trim().min(5).max(20)).length(3),
+  question: z
+    .string()
+    .trim()
+    .min(10)
+    .max(36)
+    .refine((value) => value.endsWith("？"), {
+      message: "question must end with a full-width question mark",
+    }),
+});
+
+export type ReaderBrief = z.infer<typeof readerBriefSchema>;

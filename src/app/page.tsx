@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
 import { JsonLd } from "@/components/seo/json-ld";
-import { ReactionsProvider } from "@/components/skill/reactions-context";
 import { SkillGrid } from "@/components/skill/skill-grid";
 import { TagLink } from "@/components/skill/tag-link";
 import { HeroSearch } from "@/components/site/hero-search";
@@ -16,7 +15,7 @@ import {
 } from "@/lib/skills";
 
 const DESCRIPTION =
-  "整理者日常在用的 AI Skill。收录弗洛伊德、黑格尔、芒格、雷军等人物思维 Skill，支持全文阅读、复制与下载。";
+  "整理者日常在用的 AI Skill。收录弗洛伊德、黑格尔、芒格、雷军等人物思维 Skill，可复制给 AI，也可以当作方法自己读。";
 
 export const metadata: Metadata = {
   title: {
@@ -46,21 +45,21 @@ export default function HomePage() {
   const popularTags = [...getTagsWithCounts()]
     .sort((a, b) => b.count - a.count || a.order - b.order)
     .slice(0, 3);
-  const cardSkills = skills.map(toSkillCardData);
-  const ids = cardSkills.map((skill) => skill.slug);
 
   return (
-    <ReactionsProvider ids={ids}>
+    <>
       <section className="border-b border-line">
-        <div className="container-page grid gap-10 py-12 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <div className="container-page grid gap-10 py-12 sm:py-16 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
           <div>
-            <h1 className="max-w-xl font-serif text-[32px] leading-[1.2] tracking-tight text-ink sm:text-[40px] lg:text-[44px]">
+            <h1 className="max-w-2xl font-serif text-[32px] leading-[1.2] tracking-tight text-ink sm:text-[40px] xl:text-[44px]">
               把大师的思维方式，
               <br />
-              装进你的 AI。
+              装进你的 AI，
+              <br className="sm:hidden" />
+              或装进你的脑子。
             </h1>
             <p className="mt-5 max-w-lg text-base leading-8 text-muted">
-              整理者日常在用的 AI Skill，直接复制就能用。
+              精选一些人物 Skill。
             </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -161,6 +160,6 @@ export default function HomePage() {
           })),
         }}
       />
-    </ReactionsProvider>
+    </>
   );
 }

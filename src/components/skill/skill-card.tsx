@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
-import { ReactionBadge } from "@/components/skill/reaction-badge";
 import { cn } from "@/lib/utils";
 import type { SkillCardData } from "@/lib/skill-card-data";
 
@@ -35,13 +34,10 @@ export function SkillCard({
 
       <div className="mt-auto flex items-center justify-between gap-3 pt-8 text-xs text-muted">
         <span>{skill.readingLabel}</span>
-        <span className="flex items-center gap-3">
-          <ReactionBadge slug={skill.slug} />
-          <ArrowUpRight
-            className="size-3.5 -translate-x-1 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
-            aria-hidden
-          />
-        </span>
+        <ArrowUpRight
+          className="size-3.5 -translate-x-1 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
+          aria-hidden
+        />
       </div>
     </Link>
   );

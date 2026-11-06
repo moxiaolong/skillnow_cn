@@ -1,7 +1,6 @@
 # EdgeOne Pages 部署指南
 
-目标：把 `out/` 静态站点和 `functions/` 边缘函数部署到腾讯云 EdgeOne Pages，绑定
-`skillnow.cn`，赞踩数据存 EdgeOne KV，全程 0 成本。
+目标：把 `out/` 静态站点部署到腾讯云 EdgeOne Pages，绑定 `skillnow.cn`，全程 0 成本。
 
 ## 0. 前置条件
 
@@ -39,8 +38,7 @@ git remote add origin git@github.com:moxiaolong/skillnow_cn.git
 git push -u origin main
 ```
 
-> 仓库里不要提交 `.env.local`、`REACTIONS_HMAC_SECRET`、`REACTIONS_CLEANUP_SECRET`。
-> `.gitignore` 已忽略 `.env*`，只保留 `.env.example`。
+> 仓库里不要提交 `.env.local`。`.gitignore` 已忽略 `.env*`，只保留 `.env.example`。
 
 ## 3. 创建 EdgeOne Pages 项目
 
@@ -55,15 +53,7 @@ git push -u origin main
    - 如果构建环境没有中文字体，`build:og` 会跳过并保留仓库里已提交的 `public/og/*.png`。
 5. 记下平台分配的预览域名。
 
-## 4. 创建 KV 并绑定
-
-1. EdgeOne Pages 控制台 → **KV 存储** → 新建命名空间，例如 `skillnow-reactions`。
-2. 在 Pages 项目的 **设置 → KV 绑定** 中绑定：
-   - 变量名：`REACTIONS_KV`
-   - 命名空间：`skillnow-reactions`
-3. 绑定后在边缘函数里通过 `env.REACTIONS_KV` 访问。
-
-## 5. 配置环境变量
+## 4. 配置环境变量
 
 在 Pages 项目的 **设置 → 环境变量** 中添加：
 
@@ -71,47 +61,11 @@ git push -u origin main
 |---|---|
 | `NEXT_PUBLIC_POSTHOG_KEY` | PostHog 项目 Key；不填则关闭统计 |
 | `NEXT_PUBLIC_POSTHOG_HOST` | 例如 `https://us.i.posthog.com` |
-| `REACTIONS_HMAC_SECRET` | 随机长字符串，用于 IP+UA 哈希 |
-| `REACTIONS_CLEANUP_SECRET` | 另一个随机长字符串，用于清理接口鉴权 |
 
-生成随机密钥：
+> `NEXT_PUBLIC_*` 会进入前端产物；修改环境变量后需要重新部署。
+> AI 对话不依赖任何服务端环境变量，用户自己的 API Key 只保存在浏览器。
 
-```bash
-openssl rand -hex 32
-```
-
-> `NEXT_PUBLIC_*` 会进入前端产物；`REACTIONS_*` 只给边缘函数用，不会打包到前端。
-> 修改环境变量后需要重新部署。
-
-## 6. 验证边缘函数
-
-部署后：
-
-```bash
-curl "https://<preview-domain>/api/reactions?ids=sigmund-freud,hegel"
-```
-
-应返回：
-
-```json
-{"counts":{"sigmund-freud":{"up":0,"down":0},"hegel":{"up":0,"down":0}}}
-```
-
-投票：
-
-```bash
-curl -X POST "https://<preview-domain>/api/reactions" \
-  -H "content-type: application/json" \
-  -H "Origin: https://skillnow.cn" \
-  -d '{"slug":"sigmund-freud","action":"up"}'
-```
-
-第一次应返回 `{"ok":true,"counts":{"up":1,"down":0}}`；同一天再投返回 409。
-
-> EdgeOne KV 是最终一致模型，边缘缓存约 60 秒。投票者自己的页面会乐观 +1，
-> 其他用户最多约 60 秒后看到最新计数。
-
-## 7. 绑定域名与备案
+## 5. 绑定域名与备案
 
 1. 备案通过后，在 Pages 项目 **域名管理** 中添加：
    - `skillnow.cn`（主域名）
@@ -132,35 +86,23 @@ curl -X POST "https://<preview-domain>/api/reactions" \
 > 未备案时只能使用「全球可用区（不含中国大陆）」，国内访问会慢；
 > 不要用未备案域名做正式推广。
 
-## 8. 配置每日清理
+## 6. 上线检查清单
 
-`functions/api/reactions-cleanup.js` 会删除 2 天前的投票哈希 key。
-
-1. GitHub 仓库 → **Settings → Secrets and variables → Actions**，新增：
-   - `REACTIONS_CLEANUP_SECRET`：与 EdgeOne 环境变量里的值一致。
-2. `.github/workflows/cleanup-reactions.yml` 已配置每天 03:17 UTC 调用：
-   `https://skillnow.cn/api/reactions-cleanup`
-3. 上线前如果域名还没生效，工作流会失败；可以先在 Actions 里手动禁用，
-   上线后再启用（或手动触发一次）。
-
-如果 EdgeOne KV 运行时不支持 `list`，清理接口会返回 501；此时旧 key 会保留但不再读取，
-隐私政策里已说明这一限制。
-
-## 9. 上线检查清单
-
-- [ ] 首页、`/skills/`、4 个详情页、标签页、榜单、关于、隐私、条款均可访问
+- [ ] 首页、`/skills/`、4 个详情页、标签页、榜单、AI 对话、关于、隐私、条款均可访问
 - [ ] 搜索弹窗能加载 `/search-index.json` 并命中
 - [ ] 复制提示词 / 复制 SKILL.md / 下载 .md 正常
-- [ ] 赞踩：第一次成功，第二次同一天 409，刷新后计数仍在
-- [ ] 断网或 API 失败时显示「本次反馈仅保存在本地」
-- [ ] 四个精神分析详情页底部有 SoulStation CTA，其它页面没有
+- [ ] AI 对话：默认模型 `deepseek-flash`，填写 API 地址与 Key 后能收到流式回复（含思考过程）
+- [ ] 联网搜索：默认开启，模型触发后能显示来源；关闭后不再请求 Search API
+- [ ] AI 对话：无效 Key 显示友好错误；配置与历史刷新后仍在；清除配置后 Key 被删除
+- [ ] AI 对话页底部始终显示「内容为 AI 生成，并非真人，结果仅供参考。」
+- [ ] 四个精神分析详情页底部有 SoulStation CTA；页脚全站显示 SoulStation 推荐链接
 - [ ] 来源徽章只在有女娲署名的页面出现（齐泽克没有）
 - [ ] sitemap.xml、robots.txt、canonical、JSON-LD、OG 图可访问
 - [ ] 375 / 390 / 768 / 1440 无横向滚动
 - [ ] Lighthouse 性能 / SEO / 可访问性 ≥ 90
 - [ ] 页脚公司主体、ICP 备案号、hi@skillnow.cn 正确
 
-## 10. 常见问题
+## 7. 常见问题
 
 ### 构建失败：`spawnSync pnpm.cmd EINVAL`
 
@@ -173,30 +115,28 @@ Windows 本地构建已改用 `execSync`；如果仍有问题，确认在 PowerS
 EdgeOne 构建环境没有该字体时会跳过，保留已提交的 `public/og/*.png`。
 如需重新生成，在本机运行 `pnpm build:og` 后提交 PNG。
 
-### 赞踩一直显示「暂无评价」
+### AI 对话无法连接模型平台
 
-- 检查 `REACTIONS_KV` 是否绑定。
-- 检查 `REACTIONS_HMAC_SECRET` 是否配置。
-- 检查 `Origin` 是否为 `https://skillnow.cn`、`https://www.skillnow.cn` 或 EdgeOne 预览域。
-- 查看 Pages 项目的函数日志。
+- 检查 API 地址是否为 `https://` 开头的完整地址（默认 `https://api.deepseek.com`）。
+- 检查 API Key 是否有效、账户是否有余额；401/402 会显示对应提示。
+- 浏览器直连依赖模型平台允许 CORS；请确认所选平台支持。
+- 对话与配置只在本机，本站服务端没有相关日志可查。
 
-### 赞踩第二次仍然成功
+### 联网搜索失败
 
-EdgeOne KV 最终一致，voter key 写入可能有延迟；等约 60 秒再试。
-如果持续出现，检查 `v:{date}:{hash}:{slug}` 是否写入成功。
+- 联网搜索使用所填 API 的 `/v1/tools/search`；平台不支持时会返回 404，关闭联网搜索或改用支持该接口的平台。
+- 401/402/429 与对话接口一致，检查 Key、余额和频率。
 
 ### 修改内容后页面没更新
 
 内容文件改动后需要重新构建（push 到 GitHub 触发 Pages 构建，或本地 `pnpm build`）。
 `public/skills/` 与 `public/search-index.json` 是构建产物，不要手改。
 
-## 11. 免费额度提醒
+## 8. 免费额度提醒
 
 EdgeOne Pages 免费版当前包含（以控制台为准）：
 
 - 静态托管流量与请求不限量
-- 每月约 300 万次边缘函数执行
-- KV 1 GB
 - 每月 500 次构建
 
 本项目 14–50 个 Skill、低流量场景完全在额度内。额度政策可能调整，上线后可在

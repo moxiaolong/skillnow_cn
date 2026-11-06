@@ -3,12 +3,11 @@ import Link from "next/link";
 
 import { JsonLd } from "@/components/seo/json-ld";
 import { RankingList } from "@/components/skill/ranking-list";
-import { ReactionsProvider } from "@/components/skill/reactions-context";
 import { toSkillCardData } from "@/lib/skill-card-data";
 import { getPublishedSkills } from "@/lib/skills";
 
 const DESCRIPTION =
-  "按读者赞踩排序的 AI Skill 榜单。0 票时按收录顺序展示。";
+  "按收录顺序整理的 AI Skill 榜单。";
 
 export const metadata: Metadata = {
   title: "榜单",
@@ -28,20 +27,20 @@ export const metadata: Metadata = {
 };
 
 export default function RankingsPage() {
-  const skills = getPublishedSkills().map(toSkillCardData);
-  const ids = skills.map((skill) => skill.slug);
+  const skills = getPublishedSkills()
+    .map(toSkillCardData)
+    .sort((a, b) => a.order - b.order);
 
   return (
-    <ReactionsProvider ids={ids}>
-      <div className="container-page py-12 sm:py-16">
-        <header className="max-w-2xl">
-          <h1 className="font-serif text-3xl tracking-tight text-ink sm:text-4xl">
-            榜单
-          </h1>
-          <p className="mt-3 text-base leading-8 text-muted">
-            按赞减踩排序，0 票时按收录顺序。
-          </p>
-        </header>
+    <div className="container-page py-12 sm:py-16">
+      <header className="max-w-2xl">
+        <h1 className="font-serif text-3xl tracking-tight text-ink sm:text-4xl">
+          榜单
+        </h1>
+        <p className="mt-3 text-base leading-8 text-muted">
+          按收录顺序整理，方便一次浏览全部 Skill。
+        </p>
+      </header>
 
         <div className="mt-8">
           <RankingList skills={skills} />
@@ -70,7 +69,6 @@ export default function RankingsPage() {
             })),
           }}
         />
-      </div>
-    </ReactionsProvider>
+    </div>
   );
 }
