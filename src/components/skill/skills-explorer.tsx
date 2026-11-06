@@ -11,6 +11,7 @@ import { Search, X } from "lucide-react";
 
 import { SkillGrid } from "@/components/skill/skill-grid";
 import type { SkillCardData } from "@/components/skill/skill-card";
+import { usePins } from "@/lib/use-pins";
 import { cn } from "@/lib/utils";
 
 export type TagOption = {
@@ -48,6 +49,8 @@ function ExplorerInner({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sort, setSort] = useState<SortOption>("default");
   const [ready, setReady] = useState(false);
+  const pins = usePins();
+  const pinnedSlugs = useMemo(() => new Set(pins), [pins]);
 
   useEffect(() => {
     // The query string is external state; read it on mount to keep the page static.
@@ -102,19 +105,23 @@ function ExplorerInner({
           )
         : base;
 
-    if (sort === "latest") {
-      return [...tagFiltered].sort(
-        (a, b) =>
-          b.updatedAt.localeCompare(a.updatedAt) || a.order - b.order,
-      );
-    }
+    const ordered =
+      sort === "latest"
+        ? [...tagFiltered].sort(
+            (a, b) =>
+              b.updatedAt.localeCompare(a.updatedAt) || a.order - b.order,
+          )
+        : trimmed
+          ? tagFiltered
+          : [...tagFiltered].sort((a, b) => a.order - b.order);
 
-    if (!trimmed) {
-      return [...tagFiltered].sort((a, b) => a.order - b.order);
-    }
+    if (trimmed || pinnedSlugs.size === 0) return ordered;
 
-    return tagFiltered;
-  }, [deferredQuery, fuse, selectedTags, skills, sort]);
+    return [...ordered].sort(
+      (a, b) =>
+        Number(!pinnedSlugs.has(a.slug)) - Number(!pinnedSlugs.has(b.slug)),
+    );
+  }, [deferredQuery, fuse, pinnedSlugs, selectedTags, skills, sort]);
 
   function toggleTag(tag: string) {
     setSelectedTags((current) =>
@@ -211,6 +218,7 @@ function ExplorerInner({
       <div className="flex items-center justify-between border-b border-line pb-3">
         <p className="text-xs text-muted" aria-live="polite">
           {visible.length} 个 Skill
+          {pinnedSlugs.size > 0 ? ` · 已置顶 ${pinnedSlugs.size}` : ""}
         </p>
       </div>
 
@@ -218,6 +226,7 @@ function ExplorerInner({
         <SkillGrid
           skills={visible}
           columns={skills.length <= 4 ? 2 : 3}
+          showPin
         />
       ) : (
         <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">

@@ -1,6 +1,6 @@
 import { CopyButton } from "@/components/skill/copy-button";
 import { DownloadButton } from "@/components/skill/download-button";
-import { FavoriteButton } from "@/components/skill/favorite-button";
+import { PinButton } from "@/components/skill/pin-button";
 
 export function SkillActions({ slug }: { slug: string }) {
   const base = `/skills/${slug}`;
@@ -27,7 +27,7 @@ export function SkillActions({ slug }: { slug: string }) {
           fileName={`${slug}.md`}
           slug={slug}
         />
-        <FavoriteButton slug={slug} className="sm:ml-auto" />
+        <PinButton slug={slug} className="sm:ml-auto" />
       </div>
     </div>
   );

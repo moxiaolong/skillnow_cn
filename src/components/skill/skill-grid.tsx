@@ -5,10 +5,12 @@ export function SkillGrid({
   skills,
   columns = 3,
   className,
+  showPin = false,
 }: {
   skills: SkillCardData[];
   columns?: 2 | 3 | 4;
   className?: string;
+  showPin?: boolean;
 }) {
   const gridClass =
     columns === 4
@@ -20,7 +22,7 @@ export function SkillGrid({
   return (
     <div className={cn("grid gap-4", gridClass, className)}>
       {skills.map((skill) => (
-        <SkillCard key={skill.slug} skill={skill} />
+        <SkillCard key={skill.slug} skill={skill} showPin={showPin} />
       ))}
     </div>
   );
