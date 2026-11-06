@@ -927,7 +927,7 @@ export function ChatClient() {
     let endReason: DiscussionEndReason | null = null;
     let endRoundLimit = discussionMaxRounds;
     let questionRound = 1;
-    let spokenThisRound = new Set<string>();
+    let answeredThisQuestion = new Set<string>();
     let lastSeenUserMessageId =
       discussionStateRef.current.latestUserMessageId;
 
@@ -937,7 +937,7 @@ export function ChatClient() {
 
         if (state.latestUserMessageId !== lastSeenUserMessageId) {
           lastSeenUserMessageId = state.latestUserMessageId;
-          spokenThisRound = new Set();
+          answeredThisQuestion = new Set();
           round += 1;
           questionRound = round;
           setDiscussionSelected(null);
@@ -964,20 +964,23 @@ export function ChatClient() {
           break;
         }
 
-        const eligibleParticipants = participants.filter(
-          (participant) => !spokenThisRound.has(participant.slug),
-        );
-        if (eligibleParticipants.length === 0) {
+        const answeringQuestion = round === questionRound;
+        const eligibleParticipants = answeringQuestion
+          ? participants.filter(
+              (participant) => !answeredThisQuestion.has(participant.slug),
+            )
+          : participants;
+
+        if (answeringQuestion && eligibleParticipants.length === 0) {
           completedRounds = round;
           round += 1;
-          spokenThisRound = new Set();
+          questionRound = -1;
           setDiscussionSelected(null);
           setDiscussionIntents({});
           setDiscussionIntentTargets({});
           continue;
         }
 
-        const answeringQuestion = round === questionRound;
         discussionStateRef.current.round = round;
         setDiscussionSelected(null);
         setDiscussionIntentTargets({});
@@ -1221,7 +1224,9 @@ export function ChatClient() {
           break;
         }
 
-        spokenThisRound.add(participant.slug);
+        if (answeringQuestion) {
+          answeredThisQuestion.add(participant.slug);
+        }
         setDiscussionSelected(participant.slug);
 
         const systemPrompt = buildDiscussionSystemPrompt({
@@ -1379,6 +1384,10 @@ export function ChatClient() {
             setDiscussionSelected(null);
             setDiscussionIntents({});
             setDiscussionIntentTargets({});
+            if (!answeringQuestion) {
+              completedRounds = round;
+              round += 1;
+            }
             continue;
           }
 
@@ -1432,6 +1441,10 @@ export function ChatClient() {
             setDiscussionSelected(null);
             setDiscussionIntents({});
             setDiscussionIntentTargets({});
+            if (!answeringQuestion) {
+              completedRounds = round;
+              round += 1;
+            }
             continue;
           }
 
@@ -1460,6 +1473,10 @@ export function ChatClient() {
         setDiscussionIntents({});
         setDiscussionIntentTargets({});
         if (!isActive()) return;
+        if (!answeringQuestion) {
+          completedRounds = round;
+          round += 1;
+        }
       }
 
       if (!isActive()) return;

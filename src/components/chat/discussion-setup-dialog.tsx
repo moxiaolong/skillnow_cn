@@ -54,13 +54,8 @@ export function DiscussionSetupDialog({
         <DialogTitle className="font-serif text-xl tracking-tight text-ink">
           选择讨论参与者
         </DialogTitle>
-        <DialogDescription className="mt-1 text-sm leading-6 text-muted">
-          勾选至少 {MIN_DISCUSSION_PARTICIPANTS} 个 Skill。默认建议最多{" "}
-          {RECOMMENDED_MAX_DISCUSSION_PARTICIPANTS} 位，也可以继续选更多，但
-          Token 消耗可能暴增。用户提问后，每位参与者都会先直接回答一次；之后进入举手讨论，
-          每轮中每位参与者最多发言一次：参与者对任意一条历史消息举手，主持人从举手者中选择，
-          直到本轮所有参与者都发过言或无人举手。只有明确反对、纠正或关键补充时才举手，
-          确实无人继续时直接结束。可设置 2–10 轮或无限轮。
+        <DialogDescription className="sr-only">
+          选择参与讨论的 Skill 和最多轮数。
         </DialogDescription>
 
         <fieldset className="mt-4">
